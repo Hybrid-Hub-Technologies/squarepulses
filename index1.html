@@ -649,6 +649,278 @@ function findSupport(lows, current) {
   if (!below.length) return null;
   return Math.max(...below);
 }
+
+// ===================== TOKEN SEARCH & SIGNAL FUNCTIONS =====================
+let selectedToken = null;
+let watchlist = JSON.parse(localStorage.getItem('sq_watchlist') || '[]');
+
+async function searchTokens() {
+  const kw = document.getElementById('searchInput').value.trim();
+  if (!kw) { showToast('info','🔍','Enter a search keyword'); return; }
+
+  const btn = document.getElementById('searchBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>';
+  document.getElementById('tokenResults').innerHTML = '<div class="loading-overlay"><span class="spinner"></span> Searching...</div>';
+
+  try {
+    const [geckoRes, dexRes] = await Promise.allSettled([
+      searchCoinGecko(kw),
+      searchDEX(kw)
+    ]);
+
+    const geckoTokens = geckoRes.status === 'fulfilled' ? geckoRes.value : [];
+    const dexTokens   = dexRes.status   === 'fulfilled' ? dexRes.value   : [];
+    const allTokens   = [...geckoTokens, ...dexTokens];
+
+    if (!allTokens.length) {
+      document.getElementById('tokenResults').innerHTML = '<div class="empty-state"><p>No tokens found</p></div>';
+    } else {
+      renderTokenResults(allTokens);
+    }
+  } catch(e) { console.error(e); }
+
+  btn.disabled = false;
+  btn.innerHTML = 'Search';
+}
+
+async function searchCoinGecko(kw) {
+  const res  = await fetch(`https://api.coingecko.com/api/v3/search?query=${encodeURIComponent(kw)}`);
+  const data = await res.json();
+  const coins = (data.coins || []).slice(0, 6);
+  if (!coins.length) return [];
+
+  const ids = coins.map(c => c.id).join(',');
+  const mktRes  = await fetch(`https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&ids=${ids}&order=market_cap_desc&sparkline=false&price_change_percentage=1h,24h`);
+  const mktData = await mktRes.json();
+
+  return mktData.map(c => ({
+    name: c.name,
+    symbol: c.symbol.toUpperCase(),
+    price: c.current_price || 0,
+    percentChange24h: c.price_change_percentage_24h || 0,
+    percentChange1h: c.price_change_percentage_1h_in_currency || 0,
+    marketCap: c.market_cap || 0,
+    volume24h: c.total_volume || 0,
+    icon: c.image,
+    _source: 'coingecko',
+    _binanceSymbol: c.symbol.toUpperCase() + 'USDT',
+  }));
+}
+
+async function searchDEX(kw) {
+  const url = `https://web3.binance.com/bapi/defi/v5/public/wallet-direct/buw/wallet/market/token/search?keyword=${encodeURIComponent(kw)}&chainIds=56,8453,CT_501&orderBy=volume24h`;
+  const res  = await fetch(url, { headers: { 'Accept-Encoding': 'identity' } });
+  const data = await res.json();
+  if (!data.success || !data.data?.length) return [];
+
+  return data.data.slice(0, 5).map(t => ({
+    name: t.name,
+    symbol: t.symbol,
+    price: t.price || 0,
+    percentChange24h: t.priceChangePercent24h || 0,
+    volume24h: t.volume24h || 0,
+    contractAddress: t.address,
+    chainId: t.chainId,
+    icon: t.icon ? `https://bin.bnbstatic.com${t.icon}` : null,
+    _source: 'dex',
+  }));
+}
+
+function renderTokenResults(tokens) {
+  const html = tokens.map((t, i) => `
+    <div class="token-item" onclick="selectToken(${JSON.stringify(t).replace(/"/g, '&quot;')})">
+      <div class="token-icon">${t.icon ? `<img src="${t.icon}">` : (t.symbol || '?').substring(0,1).toUpperCase()}</div>
+      <div class="token-info">
+        <h3>${t.name}</h3>
+        <p>${t.contractAddress ? t.contractAddress.substring(0,10)+'...' : t.symbol}</p>
+      </div>
+      <div class="token-price">
+        <div class="price">$${formatPrice(t.price)}</div>
+        <div class="change ${t.percentChange24h >= 0 ? 'up' : 'down'}">${t.percentChange24h >= 0 ? '+' : ''}${t.percentChange24h.toFixed(2)}%</div>
+      </div>
+    </div>
+  `).join('');
+  document.getElementById('tokenResults').innerHTML = `<div class="token-list">${html}</div>`;
+}
+
+async function selectToken(tokenData) {
+  document.querySelectorAll('.token-item').forEach(el => el.classList.remove('selected'));
+  event?.currentTarget?.classList.add('selected');
+
+  selectedToken = tokenData;
+  document.getElementById('tokenDetailSection').style.display = 'block';
+
+  renderTokenHeader(tokenData);
+  renderMarketData(tokenData, null);
+
+  document.getElementById('tokenDetailSection').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+function renderTokenHeader(t) {
+  const isCEX = t._source === 'coingecko';
+  const badge = isCEX ? '<span class="chain-badge" style="color:#f0b90b">CEX</span>' : `<span class="chain-badge" style="color:#0052ff">DEX</span>`;
+  const iconHtml = t.icon ? `<img src="${t.icon}">` : (t.symbol||'?').substring(0,2).toUpperCase();
+
+  document.getElementById('tokenHeader').innerHTML = `
+    <div class="token-header-icon">${iconHtml}</div>
+    <div class="token-header-info">
+      <h2>${t.name}</h2>
+      <div class="sub">${t.symbol} ${badge}</div>
+    </div>
+  `;
+}
+
+function renderMarketData(t, dyn) {
+  const price  = parseFloat(dyn?.price  || t.price  || 0);
+  const change = parseFloat(dyn?.percentChange24h || t.percentChange24h || 0);
+  const cls    = change >= 0 ? 'green' : 'red';
+
+  document.getElementById('marketGrid').innerHTML = `
+    <div class="stat-box"><label>Price</label><div class="val">$${formatPrice(price)}</div></div>
+    <div class="stat-box"><label>24h Change</label><div class="val ${cls}">${change >= 0 ? '+' : ''}${change.toFixed(2)}%</div></div>
+    <div class="stat-box"><label>Volume 24h</label><div class="val">$${formatNum(dyn?.volume24h || t.volume24h || 0)}</div></div>
+    ${t.marketCap ? `<div class="stat-box"><label>Market Cap</label><div class="val">$${formatNum(t.marketCap)}</div></div>` : ''}
+  `;
+}
+
+async function generatePost() {
+  if (!selectedToken) { showToast('info','ℹ','Select a token first'); return; }
+
+  const genBtn = document.querySelector('.btn-generate');
+  genBtn.innerHTML = '<span class="spinner"></span> Analyzing...';
+  genBtn.style.pointerEvents = 'none';
+
+  const t = selectedToken;
+  let mtf = null;
+
+  try {
+    mtf = await fetchMultiTimeframeSignal(t);
+  } catch(e) { console.error(e); }
+
+  const price = parseFloat(t.price || 0);
+  const change24h = parseFloat(t.percentChange24h || 0);
+  const vol = t.volume24h || 0;
+
+  const changeSign = change24h >= 0 ? '🟢' : '🔴';
+  const momentum = change24h >= 10 ? '🚀 PUMPING' : change24h >= 5 ? '📈 Bullish' : change24h >= 0 ? '➡️ Neutral' : '📉 Bearish';
+
+  const marketBlock = `💰 Price: $${formatPrice(price)}\n📊 24h: ${change24h >= 0 ? '+' : ''}${change24h.toFixed(2)}%\n📦 Vol: $${formatNum(vol)}`;
+
+  let signalBlock = '';
+  if (mtf && mtf.combined?.type !== 'NEUTRAL') {
+    const c = mtf.combined;
+    signalBlock = `
+🎯 Entry: $${formatPrice(c.entryLow)} – $${formatPrice(c.entryHigh)}
+🟢 TP1: $${formatPrice(c.tp1)} (+${c.tp1Pct}%)
+🚀 TP2: $${formatPrice(c.tp2)} (+${c.tp2Pct}%)
+🛑 SL: $${formatPrice(c.sl)} (-${c.slPct}%)
+⚖️ R:R: 1 : ${c.rrRatio}`;
+  } else {
+    signalBlock = '⏳ Analyzing... Check later for signals';
+  }
+
+  const template = `${changeSign} $${t.symbol} — ${momentum}!
+
+${marketBlock}
+
+${signalBlock}
+
+⚠️ DYOR — Not financial advice.
+
+#${t.symbol} #Crypto #BinanceSquare`;
+
+  document.getElementById('sig-postContent').value = template.trim();
+  syncComposer(document.getElementById('sig-postContent'));
+
+  genBtn.innerHTML = '✨ Generate Post';
+  genBtn.style.pointerEvents = '';
+
+  showToast(mtf?.combined?.type === 'BUY' ? 'success' : 'info', '📊', 'Post generated!');
+}
+
+function addToWatchlist() {
+  if (!selectedToken) { showToast('info','ℹ','Select a token first'); return; }
+  const exists = watchlist.some(t => t.symbol === selectedToken.symbol);
+  if (!exists) {
+    watchlist.push(selectedToken);
+    localStorage.setItem('sq_watchlist', JSON.stringify(watchlist));
+    renderWatchlist();
+    showToast('success','✅', 'Added to watchlist');
+  }
+}
+
+function renderWatchlist() {
+  const container = document.getElementById('watchlistContainer');
+  if (!watchlist.length) {
+    container.innerHTML = '<div class="empty-state" style="padding:20px"><div class="icon">👁</div><p style="font-size:0.8rem">Add tokens to monitor</p></div>';
+    return;
+  }
+  const html = watchlist.map((t, i) => `
+    <div class="watchlist-item">
+      <div class="wl-info">
+        <div class="wl-name">${t.symbol}</div>
+        <div class="wl-change">${t.percentChange24h >= 0 ? '+' : ''}${t.percentChange24h.toFixed(2)}%</div>
+      </div>
+      <button class="remove-btn" onclick="removeFromWatchlist(${i})">✕</button>
+    </div>
+  `).join('');
+  container.innerHTML = html;
+}
+
+function removeFromWatchlist(idx) {
+  watchlist.splice(idx, 1);
+  localStorage.setItem('sq_watchlist', JSON.stringify(watchlist));
+  renderWatchlist();
+}
+
+async function toggleMonitor() {
+  // Placeholder for monitor functionality
+  showToast('info','ℹ','Monitor feature coming soon');
+}
+
+function formatPrice(p) {
+  if (!p || p === 0) return '0';
+  if (p < 0.01) return p.toFixed(8);
+  if (p < 1) return p.toFixed(6);
+  if (p < 100) return p.toFixed(4);
+  return p.toFixed(2);
+}
+
+function formatNum(n) {
+  if (n >= 1e9) return (n / 1e9).toFixed(2) + 'B';
+  if (n >= 1e6) return (n / 1e6).toFixed(2) + 'M';
+  if (n >= 1e3) return (n / 1e3).toFixed(2) + 'K';
+  return n.toFixed(0);
+}
+
+function showToast(type, icon, msg) {
+  const toast = document.getElementById('toast');
+  document.getElementById('toastIcon').textContent = icon;
+  document.getElementById('toastMsg').textContent = msg;
+  toast.className = 'toast show ' + type;
+  clearTimeout(window.toastTimer);
+  window.toastTimer = setTimeout(() => toast.classList.remove('show'), 3000);
+}
+
+function openApiModal() {
+  const key = localStorage.getItem('sq_api_key') || '';
+  document.getElementById('apiKeyInput').value = key;
+  document.getElementById('apiModal').classList.add('open');
+}
+
+function closeApiModal() {
+  document.getElementById('apiModal').classList.remove('open');
+}
+
+function saveApiKey() {
+  const key = document.getElementById('apiKeyInput').value.trim();
+  if (!key) { showToast('error','❌','Please enter an API key'); return; }
+  localStorage.setItem('sq_api_key', key);
+  closeApiModal();
+  showToast('success','✅','API Key saved');
+}
+
 </script>
 
 <script src="news.js"></script>
@@ -755,6 +1027,44 @@ function switchTab(name, btn) {
   const parent = btn.closest('.card');
   if (parent) switchInnerTab(name, btn, parent);
 }
+
+// ── Main tab switching ───────────────────────────────
+const SP = { activeMainTab: 'signals' };
+
+function switchMainTab(tabName, btn) {
+  document.querySelectorAll('.main-tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.main-tab-pane').forEach(p => p.classList.remove('active'));
+  btn.classList.add('active');
+  const pane = document.getElementById('mt-' + tabName);
+  if (pane) {
+    pane.classList.add('active');
+    SP.activeMainTab = tabName;
+    // Load content for tab if needed
+    if (tabName === 'news') loadNewsTab();
+    else if (tabName === 'forex') loadForexTab();
+    else if (tabName === 'whales') loadWhalesTab();
+    else if (tabName === 'xfeed') loadXfeedTab();
+    else if (tabName === 'coinintel') loadCoinIntelTab();
+  }
+}
+
+function loadNewsTab() { /* TODO */ }
+function loadForexTab() { /* TODO */ }
+function loadWhalesTab() { /* TODO */ }
+function loadXfeedTab() { /* TODO */ }
+function loadCoinIntelTab() { /* TODO */ }
+
+function generateNewsPost() { showToast('info','ℹ','News post generation coming soon'); }
+function generateForexPost() { showToast('info','ℹ','Forex post generation coming soon'); }
+function generateWhalePost() { showToast('info','ℹ','Whale post generation coming soon'); }
+
+// ── Init on page load ────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  renderWatchlist();
+  document.getElementById('apiModal').addEventListener('click', function(e) {
+    if (e.target === this) closeApiModal();
+  });
+});
 </script>
 
 </body>

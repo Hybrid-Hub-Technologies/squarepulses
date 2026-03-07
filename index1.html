@@ -417,6 +417,240 @@
      ══════════════════════════════════════════════════════════ -->
 <script src="core.js"></script>
 <script src="signals.js"></script>
+
+<!-- SIGNAL GENERATION ENGINE -->
+<script>
+// ===================== MULTI-TIMEFRAME ENGINE =====================
+async function fetchMultiTimeframeSignal(token) {
+  const platformMap = { '56':'bsc', '8453':'base', 'CT_501':'solana' };
+  const platform  = platformMap[token.chainId] || 'bsc';
+  const isCEX     = token._source === 'coingecko';
+  const geckoArg  = isCEX ? token : null;
+
+  const [r15m, r1h, r4h] = await Promise.allSettled([
+    fetchCandles(token.contractAddress, platform, '15min', 80,  geckoArg),
+    fetchCandles(token.contractAddress, platform, '1h',    100, geckoArg),
+    fetchCandles(token.contractAddress, platform, '4h',    100, geckoArg)
+  ]);
+
+  const candles15m = r15m.status === 'fulfilled' ? r15m.value : null;
+  const candles1h  = r1h.status  === 'fulfilled' ? r1h.value  : null;
+  const candles4h  = r4h.status  === 'fulfilled' ? r4h.value  : null;
+
+  const tf15m = candles15m ? analyzeCandles(candles15m) : null;
+  const tf1h  = candles1h  ? analyzeCandles(candles1h)  : null;
+  const tf4h  = candles4h  ? analyzeCandles(candles4h)  : null;
+
+  const signals = [tf15m, tf1h, tf4h].filter(Boolean);
+  if (!signals.length) return null;
+
+  const buys  = signals.filter(s => s.type === 'BUY').length;
+  const sells = signals.filter(s => s.type === 'SELL').length;
+
+  let combinedType = 'NEUTRAL';
+  let term = 'NEUTRAL';
+
+  if      (buys >= 3)                                          { combinedType = 'BUY';  term = 'STRONG'; }
+  else if (buys === 2 && tf4h?.type === 'BUY')                 { combinedType = 'BUY';  term = 'LONG'; }
+  else if (buys === 2 && tf1h?.type === 'BUY')                 { combinedType = 'BUY';  term = 'MID'; }
+  else if (buys === 2 && tf15m?.type === 'BUY')                { combinedType = 'BUY';  term = 'SHORT'; }
+  else if (buys === 1 && tf4h?.type === 'BUY')                 { combinedType = 'BUY';  term = 'LONG'; }
+  else if (buys === 1 && tf1h?.type === 'BUY')                 { combinedType = 'BUY';  term = 'MID'; }
+  else if (buys === 1 && tf15m?.type === 'BUY')                { combinedType = 'BUY';  term = 'SHORT'; }
+  else if (sells >= 3)                                         { combinedType = 'SELL'; term = 'STRONG'; }
+  else if (sells === 2 && tf4h?.type === 'SELL')               { combinedType = 'SELL'; term = 'LONG'; }
+  else if (sells === 2 && tf1h?.type === 'SELL')               { combinedType = 'SELL'; term = 'MID'; }
+  else if (sells === 2 && tf15m?.type === 'SELL')              { combinedType = 'SELL'; term = 'SHORT'; }
+  else if (sells === 1 && tf4h?.type === 'SELL')               { combinedType = 'SELL'; term = 'LONG'; }
+  else if (sells === 1 && tf1h?.type === 'SELL')               { combinedType = 'SELL'; term = 'MID'; }
+  else if (sells === 1 && tf15m?.type === 'SELL')              { combinedType = 'SELL'; term = 'SHORT'; }
+
+  const anyTf   = tf4h || tf1h || tf15m;
+  const current  = anyTf?.current || 0;
+  const support4h   = tf4h?.support    || null;
+  const support1h   = tf1h?.support    || null;
+  const support15m  = tf15m?.support   || null;
+  const resist4h    = tf4h?.resistance || null;
+  const resist1h    = tf1h?.resistance || null;
+
+  const supports   = [support4h, support1h, support15m].filter(Boolean).filter(s => s < current);
+  const bestSupport = supports.length ? Math.max(...supports) : current * 0.95;
+
+  const resistances  = [resist4h, resist1h].filter(Boolean).filter(r => r > current);
+  const bestResist   = resistances.length ? Math.min(...resistances) : current * 1.08;
+
+  const expectedEntryLow  = bestSupport * 1.001;
+  const expectedEntryHigh = bestSupport * 1.015;
+  const pct = (target, base) => Math.abs(((target - base) / base) * 100).toFixed(1);
+
+  if (combinedType === 'NEUTRAL') {
+    return {
+      tf15m, tf1h, tf4h,
+      combined: { type: 'NEUTRAL', term: 'NEUTRAL' },
+      waitZone: {
+        entryLow:   expectedEntryLow,
+        entryHigh:  expectedEntryHigh,
+        support:    bestSupport,
+        resistance: bestResist,
+        downFromCurrent: pct(bestSupport, current),
+        upToResist:      pct(bestResist,  current),
+      }
+    };
+  }
+
+  let baseTf = tf4h || tf1h || tf15m;
+  if (term === 'SHORT') baseTf = tf15m || tf1h || tf4h;
+  else if (term === 'MID') baseTf = tf1h || tf4h;
+
+  const resistance = baseTf.resistance;
+  const support    = baseTf.support;
+
+  const tp1Mult = term === 'SHORT' ? 1.005 : term === 'MID' ? 1.01 : term === 'LONG' ? 1.015 : 1.02;
+  const tp2Mult = term === 'SHORT' ? 1.02 : term === 'MID' ? 1.05 : term === 'LONG' ? 1.08 : 1.10;
+  const slMult  = term === 'SHORT' ? 0.97 : term === 'MID' ? 0.955 : 0.94;
+
+  const entryLow  = current * 0.995;
+  const entryHigh = current * 1.005;
+
+  let tp1, tp2, sl;
+  if (combinedType === 'BUY') {
+    tp1 = resistance && resistance > current ? Math.min(resistance, current * tp1Mult) : current * tp1Mult;
+    tp2 = current * tp2Mult;
+    sl  = support    && support    < current ? Math.max(support * 0.985, current * slMult) : current * slMult;
+  } else {
+    tp1 = support    && support    < current ? Math.max(support, current * (2-tp1Mult)) : current * (2-tp1Mult);
+    tp2 = current * (2-tp2Mult);
+    sl  = resistance && resistance > current ? Math.min(resistance * 1.015, current * (2-slMult)) : current * (2-slMult);
+  }
+
+  const reward  = Math.abs(tp1 - current);
+  const risk    = Math.abs(current - sl);
+  const rrRatio = risk > 0 ? (reward / risk).toFixed(2) : 'N/A';
+
+  return {
+    tf15m, tf1h, tf4h,
+    combined: {
+      type: combinedType, term,
+      entryLow, entryHigh, tp1, tp2, sl,
+      tp1Pct: pct(tp1, current),
+      tp2Pct: pct(tp2, current),
+      slPct:  pct(sl,  current),
+      rrRatio
+    }
+  };
+}
+
+async function fetchCandles(address, platform, interval, limit, geckoToken) {
+  if (geckoToken) {
+    const binanceInterval = { '15min':'15m', '1h':'1h', '4h':'4h' }[interval] || interval;
+    const symbol = geckoToken._binanceSymbol || (geckoToken.symbol.toUpperCase()+'USDT');
+    const url = `https://api.binance.com/api/v3/klines?symbol=${symbol}&interval=${binanceInterval}&limit=${limit}`;
+    try {
+      const res  = await fetch(url);
+      const data = await res.json();
+      if (!Array.isArray(data) || data.length < 15) return null;
+      return data.map(k => [
+        parseFloat(k[1]), parseFloat(k[2]), parseFloat(k[3]), parseFloat(k[4]), parseFloat(k[5]), k[0], parseInt(k[8])
+      ]);
+    } catch(e) { return null; }
+  }
+
+  const url = `https://dquery.sintral.io/u-kline/v1/k-line/candles?address=${address}&platform=${platform}&interval=${interval}&limit=${limit}`;
+  try {
+    const res  = await fetch(url, { headers: { 'Accept-Encoding': 'identity' } });
+    const data = await res.json();
+    if (!data.data || data.data.length < 15) return null;
+    return data.data;
+  } catch(e) { return null; }
+}
+
+function analyzeCandles(candles) {
+  const highs   = candles.map(c => c[1]);
+  const lows    = candles.map(c => c[2]);
+  const closes  = candles.map(c => c[3]);
+  const volumes = candles.map(c => c[4]);
+  const current = closes[closes.length - 1];
+
+  const ema20 = calcEMA(closes, 20);
+  const ema50 = closes.length >= 50 ? calcEMA(closes, 50) : null;
+  const rsi   = calcRSI(closes, 14);
+
+  const recentVols = volumes.slice(-20);
+  const avgVol     = recentVols.reduce((a,b)=>a+b,0) / recentVols.length;
+  const volSpike   = volumes[volumes.length-1] > avgVol * 1.2;
+
+  const resistance = findResistance(highs.slice(-50), current);
+  const support    = findSupport(lows.slice(-50), current);
+
+  const bullish = current > ema20 && rsi > 40 && rsi < 78;
+  const bearish = current < ema20 && rsi < 60;
+
+  const last3 = closes.slice(-3);
+  const recentUp   = last3[2] > last3[0];
+  const recentDown = last3[2] < last3[0];
+
+  let type = 'NEUTRAL';
+  if      (bullish && recentUp)   type = 'BUY';
+  else if (bullish)               type = 'BUY';
+  else if (bearish && recentDown) type = 'SELL';
+  else if (bearish)               type = 'SELL';
+
+  return { type, rsi: rsi.toFixed(1), volSpike, current, resistance, support, ema20, ema50 };
+}
+
+async function fetchOrderbookLiquidity(symbol) {
+  try {
+    const url = `https://api.binance.com/api/v3/depth?symbol=${symbol}&limit=100`;
+    const res  = await fetch(url);
+    const data = await res.json();
+    if (!data.bids || !data.asks) return null;
+
+    const bids = data.bids.map(b => ({ price: parseFloat(b[0]), qty: parseFloat(b[1]) }));
+    const asks = data.asks.map(a => ({ price: parseFloat(a[0]), qty: parseFloat(a[1]) }));
+
+    const topBids = [...bids].sort((a,b) => b.qty - a.qty).slice(0, 3).sort((a,b) => b.price - a.price);
+    const topAsks = [...asks].sort((a,b) => b.qty - a.qty).slice(0, 3).sort((a,b) => a.price - b.price);
+
+    return {
+      bigBuyWalls:  topBids.map(b => ({ price: b.price, size: b.qty })),
+      bigSellWalls: topAsks.map(a => ({ price: a.price, size: a.qty })),
+    };
+  } catch(e) { return null; }
+}
+
+function calcEMA(data, period) {
+  const k = 2 / (period + 1);
+  let ema = data.slice(0, period).reduce((a,b)=>a+b,0) / period;
+  for (let i = period; i < data.length; i++) {
+    ema = data[i] * k + ema * (1 - k);
+  }
+  return ema;
+}
+
+function calcRSI(data, period = 14) {
+  let gains = 0, losses = 0;
+  for (let i = data.length - period; i < data.length; i++) {
+    const diff = data[i] - data[i-1];
+    if (diff >= 0) gains  += diff;
+    else           losses -= diff;
+  }
+  const rs = losses === 0 ? 100 : gains / losses;
+  return 100 - (100 / (1 + rs));
+}
+
+function findResistance(highs, current) {
+  const above = highs.filter(h => h > current * 1.005);
+  if (!above.length) return null;
+  return Math.min(...above);
+}
+
+function findSupport(lows, current) {
+  const below = lows.filter(l => l < current * 0.995);
+  if (!below.length) return null;
+  return Math.max(...below);
+}
+</script>
+
 <script src="news.js"></script>
 <script src="forex.js"></script>
 <script src="whales.js"></script>
@@ -439,6 +673,56 @@ async function doPost(taId, btnEl) {
   const ta = document.getElementById(taId);
   if (!ta) return;
   await postToSquare(ta.value, btnEl);
+}
+
+// postToSquare(content, btnEl) — post to Binance Square via proxy
+async function postToSquare(content, btnEl) {
+  const apiKey = localStorage.getItem('sq_api_key') || '';
+  if (!content) { showToast('info','📝','Write something first'); return; }
+  if (!apiKey) { showToast('error','🔑','Configure your API Key first'); openApiModal(); return; }
+
+  if (btnEl) {
+    btnEl.disabled = true;
+    btnEl.innerHTML = '<span class="spinner"></span> Posting...';
+  }
+
+  try {
+    const res = await fetch('/api/proxy', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ apiKey, content })
+    });
+    const data = await res.json();
+
+    if (data.code === '000000') {
+      const postId = data.data?.id;
+      const url = postId ? `https://www.binance.com/square/post/${postId}` : null;
+      showToast('success','🚀', url ? `Posted! <a href="${url}" target="_blank" style="color:var(--accent)">View Post</a>` : 'Posted to Binance Square!');
+    } else {
+      const errMsg = getPostError(data.code);
+      showToast('error','❌', errMsg);
+    }
+  } catch(e) {
+    showToast('error','⚠','Network error. Check console.');
+    console.error(e);
+  }
+
+  if (btnEl) {
+    btnEl.disabled = false;
+    btnEl.innerHTML = '🚀 Post to Square';
+  }
+}
+
+function getPostError(code) {
+  const codes = {
+    '10004':'Network error. Try again.',
+    '10005':'Identity verification required.',
+    '20002':'Sensitive words detected.',
+    '20013':'Content too long.',
+  };
+  return codes[code] || 'Post failed. Check API Key.';
 }
 
 // loadComposer(content) — called by generate functions in tab JS files

@@ -697,11 +697,11 @@ async function searchCoinGecko(kw) {
   return mktData.map(c => ({
     name: c.name,
     symbol: c.symbol.toUpperCase(),
-    price: c.current_price || 0,
-    percentChange24h: c.price_change_percentage_24h || 0,
-    percentChange1h: c.price_change_percentage_1h_in_currency || 0,
-    marketCap: c.market_cap || 0,
-    volume24h: c.total_volume || 0,
+    price: parseFloat(c.current_price) || 0,
+    percentChange24h: parseFloat(c.price_change_percentage_24h) || 0,
+    percentChange1h: parseFloat(c.price_change_percentage_1h_in_currency) || 0,
+    marketCap: parseFloat(c.market_cap) || 0,
+    volume24h: parseFloat(c.total_volume) || 0,
     icon: c.image,
     _source: 'coingecko',
     _binanceSymbol: c.symbol.toUpperCase() + 'USDT',
@@ -717,9 +717,9 @@ async function searchDEX(kw) {
   return data.data.slice(0, 5).map(t => ({
     name: t.name,
     symbol: t.symbol,
-    price: t.price || 0,
-    percentChange24h: t.priceChangePercent24h || 0,
-    volume24h: t.volume24h || 0,
+    price: parseFloat(t.price) || 0,
+    percentChange24h: parseFloat(t.priceChangePercent24h) || 0,
+    volume24h: parseFloat(t.volume24h) || 0,
     contractAddress: t.address,
     chainId: t.chainId,
     icon: t.icon ? `https://bin.bnbstatic.com${t.icon}` : null,
@@ -880,18 +880,20 @@ async function toggleMonitor() {
 }
 
 function formatPrice(p) {
-  if (!p || p === 0) return '0';
-  if (p < 0.01) return p.toFixed(8);
-  if (p < 1) return p.toFixed(6);
-  if (p < 100) return p.toFixed(4);
-  return p.toFixed(2);
+  const num = parseFloat(p) || 0;
+  if (!num || num === 0) return '0';
+  if (num < 0.01) return num.toFixed(8);
+  if (num < 1) return num.toFixed(6);
+  if (num < 100) return num.toFixed(4);
+  return num.toFixed(2);
 }
 
 function formatNum(n) {
-  if (n >= 1e9) return (n / 1e9).toFixed(2) + 'B';
-  if (n >= 1e6) return (n / 1e6).toFixed(2) + 'M';
-  if (n >= 1e3) return (n / 1e3).toFixed(2) + 'K';
-  return n.toFixed(0);
+  const num = parseFloat(n) || 0;
+  if (num >= 1e9) return (num / 1e9).toFixed(2) + 'B';
+  if (num >= 1e6) return (num / 1e6).toFixed(2) + 'M';
+  if (num >= 1e3) return (num / 1e3).toFixed(2) + 'K';
+  return num.toFixed(0);
 }
 
 function showToast(type, icon, msg) {

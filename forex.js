@@ -1,10 +1,9 @@
 // ============================================================
-// forex.js — Forex / Macro Events Tab
-// Economic calendar + crypto market impact analysis
+// forex.js — Forex/Macro Events (FREE: Economic Calendar)
 // ============================================================
 
-let _forexEvents    = [];
-let _selectedEvent  = null;
+let _forexEvents = [];
+let _selectedEvent = null;
 
 async function loadForexTab() {
   const container = document.getElementById('forex-feed');
@@ -13,33 +12,15 @@ async function loadForexTab() {
   container.innerHTML = '<div class="loading-overlay"><span class="spinner"></span> Loading economic calendar...</div>';
 
   try {
-    const raw = await callClaude(
-      `You are a macro economics analyst who covers forex events and their crypto market impact.
-Search for upcoming and recent major economic events (CPI, Fed rates, NFP, GDP, PMI, FOMC etc).
-Return ONLY a raw JSON array. No markdown, no backticks.
-Each item: { "id":number, "event":string, "country":string, "flag":string(emoji), "time":string, "impact":string(HIGH/MEDIUM/LOW), "forecast":string, "previous":string, "cryptoImpact":string(one sentence on how this affects crypto), "bullishForCrypto":boolean }
-Return 10 items sorted by impact desc.`,
-      'Find upcoming and recent major forex/macro economic events for this week including CPI, Fed, NFP, FOMC, GDP data releases.',
-      true
-    );
-
-    let items;
-    try {
-      const clean = raw.replace(/```json|```/g,'').trim();
-      items = JSON.parse(clean);
-    } catch(e) {
-      const match = raw.match(/\[[\s\S]*\]/);
-      items = match ? JSON.parse(match[0]) : [];
-    }
-
-    if (!items?.length) throw new Error('No events parsed');
-    _forexEvents = items;
-    renderForexList(items);
-
+    const events = await fetchEconomicCalendar();
+    
+    if (!events.length) throw new Error('No events available');
+    
+    _forexEvents = events;
+    renderForexList(events);
   } catch(e) {
     container.innerHTML = `<div class="empty-state"><div class="icon">🌍</div>
-      <p>Could not load events.<br><small>${e.message}</small></p>
-      <button class="btn btn-ghost" style="margin-top:16px" onclick="window._forexLoaded=false;loadForexTab()">Retry</button></div>`;
+      <p>Could not load events.<br><small>${e.message}</small></p></div>`;
   }
 }
 
@@ -48,72 +29,79 @@ function renderForexList(items) {
   if (!container) return;
 
   const html = items.map(item => `
-    <div class="event-item" id="ev-${item.id}" onclick="selectEvent(${item.id})">
-      <div class="event-time">
-        <div style="font-size:1.2rem">${item.flag}</div>
-        <div>${item.time}</div>
-      </div>
-      <div class="event-info">
-        <div class="e-name">${item.event}</div>
-        <div class="e-country">${item.country} · Prev: ${item.previous} · Forecast: ${item.forecast}</div>
-        <div style="font-size:0.72rem;margin-top:4px;color:${item.bullishForCrypto ? 'var(--green)' : 'var(--red)'}">
-          ${item.bullishForCrypto ? '🟢' : '🔴'} ${item.cryptoImpact}
+    <div class="event-card" onclick="selectEvent(${item.id})" style="cursor:pointer;padding:12px;border:1px solid rgba(255,255,255,0.1);border-radius:8px;margin-bottom:12px;background:rgba(255,255,255,0.02)">
+      <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:8px">
+        <div>
+          <h3 style="margin:0;font-size:0.9rem">${item.flag} ${item.event}</h3>
+          <p style="margin:4px 0;color:var(--muted);font-size:0.8rem">${item.country} • ${item.time}</p>
         </div>
+        <span style="padding:4px 8px;background:${item.impact === 'HIGH' ? 'rgba(239,68,68,0.2);border:1px solid rgba(239,68,68,0.5)' : 'rgba(245,158,11,0.2);border:1px solid rgba(245,158,11,0.5)'};border-radius:4px;font-size:0.7rem;font-weight:bold">${item.impact}</span>
       </div>
-      <div class="event-impact">
-        <span class="nc-impact impact-${item.impact.toLowerCase()}">${item.impact}</span>
-      </div>
-    </div>`).join('');
+      <p style="margin:0;font-size:0.8rem;color:var(--muted)">Forecast: ${item.forecast} | Previous: ${item.previous}</p>
+      <p style="margin:6px 0 0 0;font-size:0.8rem;color:var(--muted)">${item.cryptoImpact}</p>
+    </div>
+  `).join('');
 
-  container.innerHTML = `<div class="event-list fade-up">${html}</div>`;
+  container.innerHTML = html || '<div class="empty-state"><p>No events found</p></div>';
 }
 
 function selectEvent(id) {
-  document.querySelectorAll('.event-item').forEach(e => e.classList.remove('selected'));
-  document.getElementById('ev-' + id)?.classList.add('selected');
   _selectedEvent = _forexEvents.find(e => e.id === id);
-
   if (!_selectedEvent) return;
+
   const preview = document.getElementById('forex-preview');
-  if (preview) {
-    preview.innerHTML = `
-      <div style="font-weight:700;font-size:0.95rem;margin-bottom:8px">${_selectedEvent.flag} ${_selectedEvent.event}</div>
-      <div style="font-size:0.8rem;color:var(--muted);margin-bottom:8px">${_selectedEvent.country} · ${_selectedEvent.time}</div>
-      <div class="detail-grid" style="margin-top:0">
-        ${statBox('Forecast',  _selectedEvent.forecast,  '')}
-        ${statBox('Previous',  _selectedEvent.previous,  '')}
-        ${statBox('Impact',    _selectedEvent.impact,    _selectedEvent.impact==='HIGH'?'red':_selectedEvent.impact==='MEDIUM'?'gold':'green')}
-        ${statBox('Crypto',    _selectedEvent.bullishForCrypto?'Bullish':'Bearish', _selectedEvent.bullishForCrypto?'green':'red')}
+  if (!preview) return;
+
+  preview.innerHTML = `
+    <div style="margin-bottom: 16px;">
+      <h3>${_selectedEvent.flag} ${_selectedEvent.event}</h3>
+      <p style="color:var(--muted);font-size:0.85rem;margin:8px 0">${_selectedEvent.country} • ${_selectedEvent.time}</p>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:12px 0">
+        <div style="padding:8px;background:rgba(255,255,255,0.05);border-radius:6px">
+          <small style="color:var(--muted)">Impact</small><br>
+          <strong style="color:${_selectedEvent.impact === 'HIGH' ? '#ef4444' : '#f59e0b'}">${_selectedEvent.impact}</strong>
+        </div>
+        <div style="padding:8px;background:rgba(255,255,255,0.05);border-radius:6px">
+          <small style="color:var(--muted)">Forecast vs Previous</small><br>
+          <strong>${_selectedEvent.forecast} vs ${_selectedEvent.previous}</strong>
+        </div>
       </div>
-      <div style="font-size:0.8rem;color:var(--muted);margin-top:12px;line-height:1.6">${_selectedEvent.cryptoImpact}</div>`;
-  }
+      <p><strong>Crypto Impact:</strong> ${_selectedEvent.cryptoImpact}</p>
+      <p style="color:var(--muted);font-size:0.9rem">${_selectedEvent.bullishForCrypto ? '📈 Bullish for crypto' : _selectedEvent.bullishForCrypto === false ? '📉 Bearish for crypto' : '➡️ Neutral'}</p>
+    </div>
+  `;
 }
 
 async function generateForexPost() {
-  if (!_selectedEvent) { showToast('info','🌍','Select an event first'); return; }
-
-  const btn = document.getElementById('forexGenBtn');
-  if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Analyzing...'; }
-
-  try {
-    const post = await callClaude(
-      `You are a macro analyst writing for crypto traders on Binance Square.
-Create an engaging post about the given economic event and its crypto market impact.
-Max 500 chars. Use emojis. Include what to watch for. End with hashtags like #Macro #Bitcoin #Crypto.`,
-      `Event: ${_selectedEvent.flag} ${_selectedEvent.event} (${_selectedEvent.country})
-Time: ${_selectedEvent.time}
-Forecast: ${_selectedEvent.forecast} | Previous: ${_selectedEvent.previous}
-Crypto Impact: ${_selectedEvent.cryptoImpact}
-Sentiment: ${_selectedEvent.bullishForCrypto ? 'Bullish' : 'Bearish'} for crypto
-
-Write a Binance Square post about this event.`,
-      false
-    );
-    loadComposer(post);
-    showToast('success','✨','Post generated!');
-  } catch(e) {
-    showToast('error','❌','Generation failed');
+  if (!_selectedEvent) {
+    showToast('info', 'ℹ', 'Select an event first');
+    return;
   }
 
-  if (btn) { btn.disabled = false; btn.innerHTML = '✨ Generate Post'; }
+  const genBtn = document.querySelector('[onclick*="generateForexPost"]');
+  if (genBtn) {
+    genBtn.innerHTML = '<span class="spinner"></span> Generating...';
+    genBtn.style.pointerEvents = 'none';
+  }
+
+  try {
+    const sentiment = _selectedEvent.bullishForCrypto ? 'bullish' : 'bearish';
+    const prompt = `Write a Binance Square post about this macro event impact on crypto:\n\nEvent: ${_selectedEvent.event}\nCountry: ${_selectedEvent.country}\nImpact: ${_selectedEvent.impact}\nCrypto Impact: ${_selectedEvent.cryptoImpact}\nSentiment: ${sentiment}\n\nMake it 100-150 chars, engaging, with emojis and hashtags.`;
+
+    const post = await callClaude(
+      'You are a crypto market analyst commenting on macroeconomic events.',
+      prompt,
+      false
+    );
+
+    loadComposer(post);
+    showToast('success', '📊', 'Forex post generated!');
+  } catch(e) {
+    showToast('error', '❌', e.message);
+  }
+
+  if (genBtn) {
+    genBtn.innerHTML = '✨ Generate Post';
+    genBtn.style.pointerEvents = '';
+  }
 }

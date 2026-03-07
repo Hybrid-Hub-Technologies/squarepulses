@@ -1,114 +1,76 @@
 // ============================================================
-// news.js — Crypto News Tab
-// Sources: CoinGecko (free) + CryptoPanic (free key) + RSS feeds
-// Post generation: Groq AI
+// news.js — Crypto News Tab (FREE: CoinGecko + NewsAPI)
 // ============================================================
 
-let _newsItems    = [];
+let _newsItems = [];
 let _selectedNews = null;
-
-// RSS → CORS proxy (free public proxy)
-const RSS_PROXY = 'https://api.rss2json.com/v1/api.json?rss_url=';
-const RSS_FEEDS = [
-  { name: 'CoinDesk',      url: 'https://www.coindesk.com/arc/outboundfeeds/rss/' },
-  { name: 'CoinTelegraph', url: 'https://cointelegraph.com/rss' },
-  { name: 'Decrypt',       url: 'https://decrypt.co/feed' },
-];
 
 // ── Load Tab ──────────────────────────────────────────────
 async function loadNewsTab() {
   const container = document.getElementById('news-feed');
   if (!container) return;
-
-  container.innerHTML = '<div class="loading-overlay"><span class="spinner"></span> Fetching latest crypto news from multiple sources...</div>';
+  container.innerHTML = '<div class="loading-overlay"><span class="spinner"></span> Fetching latest crypto news...</div>';
 
   try {
-    const [geckoRes, panicRes, rssRes] = await Promise.allSettled([
+    const [geckoNews, newsapiNews] = await Promise.allSettled([
       fetchCoinGeckoNews(),
-      fetchCryptoPanicNews(),
-      fetchRSSNews(),
+      fetchNewsAPI(),
     ]);
 
-    let all = [];
-    if (geckoRes.status === 'fulfilled') all = all.concat(geckoRes.value);
-    if (panicRes.status === 'fulfilled') all = all.concat(panicRes.value);
-    if (rssRes.status   === 'fulfilled') all = all.concat(rssRes.value);
+    let allNews = [];
+    if (geckoNews.status === 'fulfilled') allNews = allNews.concat(geckoNews.value);
+    if (newsapiNews.status === 'fulfilled') allNews = allNews.concat(newsapiNews.value);
 
-    if (!all.length) throw new Error('No news from any source — check internet connection');
+    if (!allNews.length) throw new Error('No news available');
 
-    const deduped = deduplicateNews(all);
-    _newsItems = deduped.slice(0, 24).map((item, i) => ({ ...item, id: i + 1 }));
-    renderNewsGrid(_newsItems);
+    const seen = new Set();
+    _newsItems = allNews.filter(n => {
+      if (seen.has(n.title)) return false;
+      seen.add(n.title);
+      return true;
+    }).slice(0, 20);
 
+    renderNewsFeed(_newsItems);
   } catch(e) {
-    container.innerHTML = `
-      <div class="empty-state">
-        <div class="icon">📰</div>
-        <p>Could not load news.<br><small style="color:var(--red)">${e.message}</small></p>
-        <button class="btn btn-ghost" style="margin-top:16px" onclick="window._newsLoaded=false;loadNewsTab()">🔄 Retry</button>
-      </div>`;
+    container.innerHTML = `<div class="empty-state"><div class="icon">📰</div>
+      <p>Could not load news.<br><small>${e.message}</small></p></div>`;
   }
 }
 
 // ── Source 1: CoinGecko News (no key needed) ─────────────
 async function fetchCoinGeckoNews() {
-  const res = await fetch('https://api.coingecko.com/api/v3/news?per_page=20');
-  if (!res.ok) throw new Error('CoinGecko news failed');
-  const data = await res.json();
-  const items = data.data || data || [];
-  return items.map(item => ({
-    source:   'CoinGecko',
-    title:    item.title || item.news_title || '',
-    summary:  stripHtml(item.description || item.text || '').substring(0, 200),
-    url:      item.url || item.news_url || '',
-    time:     item.created_at || item.published_at || '',
-    category: guessCategory(item.title + ' ' + (item.description || '')),
-    impact:   guessImpact(item.title + ' ' + (item.description || '')),
-    bullish:  guessBullish(item.title + ' ' + (item.description || '')),
-  })).filter(n => n.title);
+  try {
+    const res = await fetch('https://api.coingecko.com/api/v3/news?per_page=20&order=popularity_desc');
+    const data = await res.json();
+    return (data.data || []).map(n => ({
+      id: n.id,
+      title: n.title,
+      description: n.description || n.title,
+      source: n.sources?.[0]?.name || 'CoinGecko',
+      url: n.url,
+      image: n.image?.small,
+      published_at: new Date(n.updated_at).toLocaleString(),
+      tags: n.tags || [],
+    }));
+  } catch(e) { return []; }
 }
 
-// ── Source 2: CryptoPanic (optional free key) ─────────────
-async function fetchCryptoPanicNews() {
-  const key = localStorage.getItem('sq_cp_key') || '';
-  // Public endpoint — works without key but limited
-  const url = `https://cryptopanic.com/api/free/v1/posts/?public=true&kind=news${key ? '&auth_token='+key : ''}`;
-  const res  = await fetch(url);
-  if (!res.ok) throw new Error('CryptoPanic failed');
-  const data = await res.json();
-  return (data.results || []).map(item => ({
-    source:   'CryptoPanic',
-    title:    item.title || '',
-    summary:  item.title || '',
-    url:      item.url || '',
-    time:     item.published_at || item.created_at || '',
-    category: item.currencies?.length ? item.currencies[0].code : guessCategory(item.title),
-    impact:   (item.votes?.important || 0) > 5 ? 'HIGH' : (item.votes?.liked || 0) > 3 ? 'MEDIUM' : 'LOW',
-    bullish:  (item.votes?.liked || 0) >= (item.votes?.disliked || 0),
-  })).filter(n => n.title);
-}
-
-// ── Source 3: RSS Feeds via rss2json.com (free) ───────────
-async function fetchRSSNews() {
-  const results = await Promise.allSettled(
-    RSS_FEEDS.map(feed =>
-      fetch(`${RSS_PROXY}${encodeURIComponent(feed.url)}&count=8`)
-        .then(r => r.json())
-        .then(data => (data.items || []).map(item => ({
-          source:   feed.name,
-          title:    item.title || '',
-          summary:  stripHtml(item.description || item.content || '').substring(0, 200),
-          url:      item.link || '',
-          time:     item.pubDate || '',
-          category: guessCategory(item.title + ' ' + (item.description || '')),
-          impact:   guessImpact(item.title),
-          bullish:  guessBullish(item.title + ' ' + (item.description || '')),
-        })).filter(n => n.title))
-    )
-  );
-  let all = [];
-  results.forEach(r => { if (r.status === 'fulfilled') all = all.concat(r.value); });
-  return all;
+async function fetchNewsAPI() {
+  try {
+    const query = 'cryptocurrency OR bitcoin OR ethereum';
+    const res = await fetch(`https://newsapi.org/v2/everything?q=${encodeURIComponent(query)}&sortBy=publishedAt&language=en&pageSize=20`);
+    const data = await res.json();
+    return (data.articles || []).map(a => ({
+      id: a.url,
+      title: a.title,
+      description: a.description || a.content,
+      source: a.source?.name || 'NewsAPI',
+      url: a.url,
+      image: a.urlToImage,
+      published_at: new Date(a.publishedAt).toLocaleString(),
+      tags: ['crypto', 'market'],
+    }));
+  } catch(e) { return []; }
 }
 
 // ── Deduplicate by title ──────────────────────────────────
@@ -136,112 +98,70 @@ function guessCategory(text) {
   if (/fed|inflation|cpi|macro|rate/.test(t))   return 'Macro';
   if (/binance|coinbase|exchange|hack/.test(t)) return 'Exchange';
   if (/solana|sol|bnb|xrp|cardano/.test(t))     return 'Altcoins';
-  return 'Crypto';
-}
-function guessImpact(text) {
-  const t = (text||'').toLowerCase();
-  if (['etf','sec','ban','hack','crash','surge','ath','billion','federal','regulation','war','collapse'].some(w=>t.includes(w))) return 'HIGH';
-  if (['launch','upgrade','partnership','adoption','milestone','fund'].some(w=>t.includes(w))) return 'MEDIUM';
-  return 'LOW';
-}
-function guessBullish(text) {
-  const t = (text||'').toLowerCase();
-  return !['crash','ban','hack','scam','fraud','dump','fall','drop','bear','loss','fine','sued'].some(w=>t.includes(w));
-}
-function newsTimeLabel(timeStr) {
-  if (!timeStr) return 'Recently';
-  const diff = Math.floor((Date.now() - new Date(timeStr)) / 60000);
-  if (isNaN(diff)||diff<0) return 'Just now';
-  if (diff < 60)   return diff+'m ago';
-  if (diff < 1440) return Math.floor(diff/60)+'h ago';
-  return Math.floor(diff/1440)+'d ago';
-}
-
-// ── Render Grid ───────────────────────────────────────────
-function renderNewsGrid(items) {
+function renderNewsFeed(items) {
   const container = document.getElementById('news-feed');
   if (!container) return;
 
-  const sources  = [...new Set(items.map(i => i.source))];
-  const statsBar = `
-    <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;align-items:center">
-      <span style="font-size:0.72rem;color:var(--muted)">${items.length} stories:</span>
-      ${sources.map(s => `<span class="chain-badge chain-bsc">${s}</span>`).join('')}
-    </div>`;
-
-  const cards = items.map(item => `
-    <div class="news-card" id="nc-${item.id}" onclick="selectNews(${item.id})">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
-        <span class="nc-tag">${item.category}</span>
-        <span style="font-size:0.62rem;color:var(--muted);font-family:'Space Mono',monospace">${item.source}</span>
+  const html = items.map((n, i) => `
+    <div class="news-card" onclick="selectNews('${n.id}')">
+      ${n.image ? `<div class="news-img" style="background-image:url('${n.image}')"></div>` : '<div class="news-img no-img">📰</div>'}
+      <div class="news-info">
+        <h3>${n.title}</h3>
+        <p class="source">${n.source} • ${n.published_at}</p>
+        <p class="desc">${(n.description || '').substring(0, 100)}...</p>
       </div>
-      <div class="nc-title">${item.title}</div>
-      ${item.summary && item.summary !== item.title
-        ? `<div class="nc-summary">${item.summary.substring(0,120)}${item.summary.length>120?'...':''}</div>`
-        : ''}
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-top:10px">
-        <span class="nc-impact impact-${(item.impact||'low').toLowerCase()}">${item.impact||'LOW'}</span>
-        <div style="display:flex;align-items:center;gap:6px">
-          <span>${item.bullish?'🟢':'🔴'}</span>
-          <span class="nc-time">${newsTimeLabel(item.time)}</span>
-        </div>
-      </div>
-    </div>`).join('');
+    </div>
+  `).join('');
 
-  container.innerHTML = statsBar + `<div class="news-grid fade-up">${cards}</div>`;
+  container.innerHTML = html || '<div class="empty-state"><p>No news found</p></div>';
 }
 
-// ── Select News ───────────────────────────────────────────
 function selectNews(id) {
-  document.querySelectorAll('.news-card').forEach(c => c.classList.remove('selected'));
-  document.getElementById('nc-'+id)?.classList.add('selected');
   _selectedNews = _newsItems.find(n => n.id === id);
   if (!_selectedNews) return;
 
   const preview = document.getElementById('news-preview');
   if (!preview) return;
-  const n = _selectedNews;
+
   preview.innerHTML = `
-    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px">
-      <span class="nc-impact impact-${(n.impact||'low').toLowerCase()}">${n.impact}</span>
-      <span style="font-size:0.7rem;color:var(--muted)">${n.category}</span>
-      <span style="font-size:0.7rem;color:var(--muted);margin-left:auto">${n.source} · ${newsTimeLabel(n.time)}</span>
+    <div style="margin-bottom: 16px;">
+      ${_selectedNews.image ? `<img src="${_selectedNews.image}" style="width:100%;border-radius:8px;margin-bottom:12px;max-height:200px;object-fit:cover;">` : ''}
+      <h3>${_selectedNews.title}</h3>
+      <p style="color:var(--muted);font-size:0.85rem;margin:8px 0">${_selectedNews.source} • ${_selectedNews.published_at}</p>
+      <p>${_selectedNews.description}</p>
+      <a href="${_selectedNews.url}" target="_blank" style="color:var(--accent);text-decoration:none;font-weight:bold">→ Read Full Article</a>
     </div>
-    <div style="font-weight:700;font-size:0.92rem;line-height:1.4;margin-bottom:8px">${n.title}</div>
-    ${n.summary && n.summary !== n.title
-      ? `<div style="font-size:0.8rem;color:var(--muted);line-height:1.6;margin-bottom:10px">${n.summary}</div>`
-      : ''}
-    <div style="display:flex;align-items:center;gap:8px">
-      <span style="font-size:0.8rem">${n.bullish?'🟢 Bullish':'🔴 Bearish'}</span>
-      ${n.url?`<a href="${n.url}" target="_blank" style="font-size:0.75rem;color:var(--accent);text-decoration:none;margin-left:auto">Read Full →</a>`:''}
-    </div>`;
+  `;
 }
 
-// ── Generate Post via Groq ────────────────────────────────
 async function generateNewsPost() {
-  if (!_selectedNews) { showToast('info','📰','Select a news item first'); return; }
-
-  const btn = document.getElementById('newsGenBtn');
-  if (btn) { btn.disabled=true; btn.innerHTML='<span class="spinner"></span> Writing...'; }
-
-  try {
-    const n = _selectedNews;
-    const post = await callClaude(
-      `You are a crypto social media expert writing for Binance Square. Write engaging, concise posts. Max 500 characters total. Use 2-4 emojis. End with 3-4 relevant hashtags. No filler phrases.`,
-      `Write a Binance Square post about this news:
-
-Title: "${n.title}"
-${n.summary && n.summary!==n.title ? `Details: ${n.summary}` : ''}
-Impact: ${n.impact} | Sentiment: ${n.bullish?'Bullish':'Bearish'} | Source: ${n.source}
-
-Requirements: Under 500 chars. Direct and punchy. End with hashtags like #Crypto #BinanceSquare #${n.category}.`,
-      false
-    );
-    loadComposer(post);
-    showToast('success','✨','Post generated!');
-  } catch(e) {
-    showToast('error','❌', SP.groqKey ? 'Generation failed: '+e.message : 'Add Groq key in ⚙ API Keys to generate posts (free at groq.com)');
+  if (!_selectedNews) {
+    showToast('info', 'ℹ', 'Select a news article first');
+    return;
   }
 
-  if (btn) { btn.disabled=false; btn.innerHTML='✨ Generate Post'; }
-}
+  const genBtn = document.getElementById('newsGenBtn');
+  if (genBtn) {
+    genBtn.innerHTML = '<span class="spinner"></span> Generating...';
+    genBtn.style.pointerEvents = 'none';
+  }
+
+  try {
+    const prompt = `Write a short, engaging Binance Square post (100-150 chars) about this crypto news:\n\n"${_selectedNews.title}"\n\n${_selectedNews.description}\n\nMake it trending and add relevant emojis. Include hashtags.`;
+    
+    const post = await callClaude(
+      'You are a crypto news commentator. Write short, engaging posts.',
+      prompt,
+      false
+    );
+
+    loadComposer(post);
+    showToast('success', '📊', 'News post generated!');
+  } catch(e) {
+    showToast('error', '❌', e.message);
+  }
+
+  if (genBtn) {
+    genBtn.innerHTML = '✨ Generate Post';
+    genBtn.style.pointerEvents = '';
+ 

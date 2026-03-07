@@ -1,53 +1,25 @@
 // ============================================================
-// xfeed.js — X (Twitter) Feed Tab
-// Latest posts from CZ, Vitalik, and top crypto voices
-// Market impact analysis per tweet
+// xfeed.js — X Feed Tab (FREE: CryptoPanic, Sentiment data)
 // ============================================================
 
-let _xPosts       = [];
-let _selectedPost = null;
+let _xfeedItems = [];
+let _selectedX = null;
 
-const TRACKED_ACCOUNTS = [
-  { handle: 'cz_binance',    name: 'CZ',           emoji: '👑', color: '#f0b90b' },
-  { handle: 'VitalikButerin',name: 'Vitalik',       emoji: '🦄', color: '#627eea' },
-  { handle: 'elonmusk',      name: 'Elon Musk',     emoji: '🚀', color: '#1d9bf0' },
-  { handle: 'SBF_FTX',       name: 'Crypto News',   emoji: '📰', color: '#00d084' },
-  { handle: 'michael_saylor',name: 'Saylor',        emoji: '🏦', color: '#ff8c00' },
-  { handle: 'CryptoHayes',   name: 'Hayes',         emoji: '📊', color: '#9945ff' },
-];
-
-async function loadXFeedTab() {
-  const container = document.getElementById('xfeed-container');
+async function loadXfeedTab() {
+  const container = document.getElementById('xfeed-feed');
   if (!container) return;
-
-  container.innerHTML = '<div class="loading-overlay"><span class="spinner"></span> Fetching crypto X posts...</div>';
+  container.innerHTML = '<div class="loading-overlay"><span class="spinner"></span> Loading X/Twitter crypto posts...</div>';
 
   try {
-    const raw = await callClaude(
-      `You are a crypto social media analyst. Search for the latest impactful posts/tweets from major crypto figures.
-Return ONLY a raw JSON array. No markdown, no backticks.
-Each item: { "id":number, "author":string, "handle":string, "emoji":string, "content":string(actual tweet content, max 200 chars), "time":string, "impact":string(HIGH/MEDIUM/LOW), "marketEffect":string(BULLISH/BEARISH/NEUTRAL), "analysis":string(1-2 sentences on market impact), "coin":string(most relevant coin or "General") }
-Return 10 items from: CZ (cz_binance), Vitalik Buterin, Elon Musk, Michael Saylor, or other top crypto influencers.`,
-      'Find the latest impactful tweets/posts from CZ, Vitalik Buterin, Elon Musk, Michael Saylor and other major crypto influencers from the past 24 hours.',
-      true
-    );
-
-    let items;
-    try {
-      const clean = raw.replace(/```json|```/g,'').trim();
-      items = JSON.parse(clean);
-    } catch(e) {
-      const match = raw.match(/\[[\s\S]*\]/);
-      items = match ? JSON.parse(match[0]) : [];
-    }
-
-    if (!items?.length) throw new Error('No posts found');
-    _xPosts = items;
-    renderXFeed(items);
-
+    const posts = await fetchXFeed();
+    
+    if (!posts.length) throw new Error('No posts available');
+    
+    _xfeedItems = posts;
+    renderXFeed(posts);
   } catch(e) {
     container.innerHTML = `<div class="empty-state"><div class="icon">🐦</div>
-      <p>Could not load X feed.<br><small>${e.message}</small></p>
+      <p>Could not load X feed.<br><small>${e.message}</small></p></div>`;
       <button class="btn btn-ghost" style="margin-top:16px" onclick="window._xfeedLoaded=false;loadXFeedTab()">Retry</button></div>`;
   }
 }

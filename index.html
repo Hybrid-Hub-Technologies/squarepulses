@@ -3,15 +3,461 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>SquarePulse — Crypto Intelligence Dashboard</title>
+<title>Square Pulse — Binance Square Auto-Poster</title>
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css">
+<style>
+  :root {
+    --bg: #0a0a0f;
+    --surface: #111118;
+    --card: #16161f;
+    --border: #1e1e2e;
+    --accent: #f0b90b;
+    --accent2: #ff4d4d;
+    --green: #00d084;
+    --red: #ff4d4d;
+    --text: #e8e8f0;
+    --muted: #6b6b80;
+    --glow: rgba(240,185,11,0.15);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Syne', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    top: -200px; left: -200px;
+    width: 600px; height: 600px;
+    background: radial-gradient(circle, rgba(240,185,11,0.04) 0%, transparent 70%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* HEADER */
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 20px 32px;
+    border-bottom: 1px solid var(--border);
+    background: rgba(10,10,15,0.95);
+    backdrop-filter: blur(20px);
+    position: sticky; top: 0; z-index: 100;
+  }
+
+  .logo {
+    display: flex; align-items: center; gap: 12px;
+  }
+  .logo-icon {
+    width: 36px; height: 36px;
+    background: var(--accent);
+    clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+    display: flex; align-items: center; justify-content: center;
+    animation: pulse-hex 2s ease-in-out infinite;
+  }
+  @keyframes pulse-hex {
+    0%,100% { box-shadow: 0 0 0 0 rgba(240,185,11,0.4); }
+    50% { box-shadow: 0 0 20px 8px rgba(240,185,11,0.15); }
+  }
+  .logo h1 { font-size: 1.3rem; font-weight: 800; letter-spacing: -0.02em; }
+  .logo span { color: var(--accent); }
+
+  .header-right { display: flex; align-items: center; gap: 16px; }
+
+  .monitor-badge {
+    display: flex; align-items: center; gap: 8px;
+    background: var(--card); border: 1px solid var(--border);
+    padding: 8px 14px; border-radius: 20px;
+    font-family: 'Space Mono', monospace; font-size: 0.72rem;
+    color: var(--muted);
+  }
+  .monitor-badge .dot {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: var(--muted);
+    transition: all 0.3s;
+  }
+  .monitor-badge.active .dot {
+    background: var(--green);
+    box-shadow: 0 0 8px var(--green);
+    animation: blink 1.2s ease-in-out infinite;
+  }
+  .monitor-badge.active { color: var(--text); border-color: rgba(0,208,132,0.3); }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+  .api-key-btn {
+    background: var(--card); border: 1px solid var(--border);
+    color: var(--muted); padding: 8px 14px; border-radius: 8px;
+    cursor: pointer; font-family: 'Syne', sans-serif; font-size: 0.8rem;
+    transition: all 0.2s;
+  }
+  .api-key-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .api-key-btn.configured { border-color: rgba(0,208,132,0.4); color: var(--green); }
+
+  /* MAIN LAYOUT */
+  .layout {
+    display: grid;
+    grid-template-columns: 1fr 420px;
+    gap: 24px;
+    padding: 28px 32px;
+    max-width: 1400px; margin: 0 auto;
+    position: relative; z-index: 1;
+  }
+
+  /* SECTION LABELS */
+  .section-label {
+    font-size: 0.7rem; font-weight: 700; letter-spacing: 0.12em;
+    text-transform: uppercase; color: var(--muted);
+    margin-bottom: 14px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .section-label::after {
+    content: ''; flex: 1; height: 1px; background: var(--border);
+  }
+
+  /* CARDS */
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    transition: border-color 0.3s;
+  }
+  .card:hover { border-color: rgba(240,185,11,0.2); }
+
+  /* SEARCH */
+  .search-wrap {
+    display: flex; gap: 10px; margin-bottom: 20px;
+  }
+  .search-input {
+    flex: 1; background: var(--surface); border: 1px solid var(--border);
+    color: var(--text); padding: 12px 16px; border-radius: 8px;
+    font-family: 'Syne', sans-serif; font-size: 0.9rem;
+    outline: none; transition: all 0.2s;
+  }
+  .search-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--glow); }
+  .search-input::placeholder { color: var(--muted); }
+
+  .btn {
+    padding: 12px 20px; border-radius: 8px; border: none;
+    cursor: pointer; font-family: 'Syne', sans-serif; font-weight: 700;
+    font-size: 0.85rem; transition: all 0.2s; white-space: nowrap;
+  }
+  .btn-primary {
+    background: var(--accent); color: #000;
+  }
+  .btn-primary:hover { background: #ffd04a; transform: translateY(-1px); }
+  .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+  .btn-ghost {
+    background: transparent; border: 1px solid var(--border);
+    color: var(--muted);
+  }
+  .btn-ghost:hover { border-color: var(--accent); color: var(--accent); }
+
+  .btn-green { background: var(--green); color: #000; }
+  .btn-green:hover { background: #00f09a; transform: translateY(-1px); }
+  .btn-green:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+  /* TOKEN RESULTS */
+  .token-list { display: flex; flex-direction: column; gap: 10px; }
+
+  .token-item {
+    display: grid;
+    grid-template-columns: 44px 1fr auto;
+    align-items: center;
+    gap: 14px;
+    padding: 14px 16px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .token-item:hover { border-color: var(--accent); background: rgba(240,185,11,0.04); }
+  .token-item.selected { border-color: var(--accent); background: rgba(240,185,11,0.07); }
+
+  .token-icon {
+    width: 44px; height: 44px; border-radius: 50%;
+    background: linear-gradient(135deg, #1a1a2e, #16213e);
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 800; font-size: 0.8rem; color: var(--accent);
+    border: 1px solid var(--border); overflow: hidden;
+    flex-shrink: 0;
+  }
+  .token-icon img { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; }
+
+  .token-info h3 { font-size: 0.95rem; font-weight: 700; }
+  .token-info p { font-size: 0.75rem; color: var(--muted); font-family: 'Space Mono', monospace; margin-top: 2px; }
+
+  .token-price { text-align: right; }
+  .token-price .price { font-family: 'Space Mono', monospace; font-size: 0.85rem; font-weight: 700; }
+  .token-price .change {
+    font-family: 'Space Mono', monospace; font-size: 0.75rem;
+    margin-top: 3px; padding: 2px 7px; border-radius: 4px;
+    display: inline-block;
+  }
+  .change.up { color: var(--green); background: rgba(0,208,132,0.1); }
+  .change.down { color: var(--red); background: rgba(255,77,77,0.1); }
+
+  /* TOKEN DETAIL */
+  .detail-grid {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
+    margin-top: 16px;
+  }
+  .stat-box {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 8px; padding: 12px 14px;
+  }
+  .stat-box label { font-size: 0.68rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; }
+  .stat-box .val { font-family: 'Space Mono', monospace; font-size: 0.88rem; font-weight: 700; margin-top: 4px; }
+  .stat-box .val.green { color: var(--green); }
+  .stat-box .val.red { color: var(--red); }
+  .stat-box .val.gold { color: var(--accent); }
+
+  /* RIGHT PANEL */
+  .right-panel { display: flex; flex-direction: column; gap: 20px; }
+
+  /* POST COMPOSER */
+  .composer textarea {
+    width: 100%; background: var(--surface); border: 1px solid var(--border);
+    color: var(--text); padding: 14px 16px; border-radius: 8px;
+    font-family: 'Syne', sans-serif; font-size: 0.88rem;
+    outline: none; resize: vertical; min-height: 160px;
+    line-height: 1.6; transition: all 0.2s;
+  }
+  .composer textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--glow); }
+  .composer textarea::placeholder { color: var(--muted); }
+
+  .composer-actions {
+    display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap;
+  }
+
+  .char-count {
+    font-family: 'Space Mono', monospace; font-size: 0.72rem;
+    color: var(--muted); margin-top: 8px; text-align: right;
+  }
+
+  /* MONITOR PANEL */
+  .monitor-config {
+    display: flex; flex-direction: column; gap: 12px;
+  }
+
+  .config-row {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 0; border-bottom: 1px solid var(--border);
+  }
+  .config-row:last-child { border-bottom: none; }
+  .config-row label { font-size: 0.85rem; color: var(--text); }
+  .config-row span { font-size: 0.75rem; color: var(--muted); display: block; margin-top: 2px; }
+
+  .toggle {
+    width: 44px; height: 24px; background: var(--border);
+    border-radius: 12px; cursor: pointer; position: relative;
+    transition: all 0.3s; border: none; flex-shrink: 0;
+  }
+  .toggle::after {
+    content: ''; position: absolute;
+    width: 18px; height: 18px; background: var(--muted);
+    border-radius: 50%; top: 3px; left: 3px; transition: all 0.3s;
+  }
+  .toggle.on { background: rgba(0,208,132,0.25); }
+  .toggle.on::after { background: var(--green); transform: translateX(20px); }
+
+  .threshold-input {
+    background: var(--surface); border: 1px solid var(--border);
+    color: var(--text); padding: 6px 10px; border-radius: 6px;
+    font-family: 'Space Mono', monospace; font-size: 0.85rem;
+    width: 70px; text-align: center; outline: none;
+  }
+  .threshold-input:focus { border-color: var(--accent); }
+
+  /* ALERTS LOG */
+  .alerts-log {
+    max-height: 220px; overflow-y: auto;
+    display: flex; flex-direction: column; gap: 8px;
+    padding-right: 4px;
+  }
+  .alerts-log::-webkit-scrollbar { width: 4px; }
+  .alerts-log::-webkit-scrollbar-track { background: var(--surface); border-radius: 2px; }
+  .alerts-log::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+  .alert-item {
+    padding: 10px 14px;
+    background: var(--surface); border-radius: 8px;
+    border-left: 3px solid transparent;
+    animation: slideIn 0.3s ease;
+  }
+  .alert-item.pump { border-left-color: var(--green); }
+  .alert-item.dump { border-left-color: var(--red); }
+  .alert-item.posted { border-left-color: var(--accent); }
+  .alert-item .alert-title { font-size: 0.82rem; font-weight: 700; }
+  .alert-item .alert-time { font-family: 'Space Mono', monospace; font-size: 0.68rem; color: var(--muted); margin-top: 3px; }
+  .alert-item .alert-meta { font-size: 0.75rem; color: var(--muted); margin-top: 2px; }
+
+  @keyframes slideIn {
+    from { opacity:0; transform: translateX(-10px); }
+    to { opacity:1; transform: translateX(0); }
+  }
+
+  /* CHAIN BADGES */
+  .chain-badge {
+    font-family: 'Space Mono', monospace; font-size: 0.65rem;
+    padding: 2px 7px; border-radius: 4px; border: 1px solid;
+    display: inline-block;
+  }
+  .chain-bsc { color: #f0b90b; border-color: rgba(240,185,11,0.3); background: rgba(240,185,11,0.07); }
+  .chain-base { color: #0052ff; border-color: rgba(0,82,255,0.3); background: rgba(0,82,255,0.07); }
+  .chain-sol { color: #9945ff; border-color: rgba(153,69,255,0.3); background: rgba(153,69,255,0.07); }
+
+  /* MODAL */
+  .modal-overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.8);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 999; backdrop-filter: blur(4px);
+    opacity: 0; pointer-events: none; transition: opacity 0.3s;
+  }
+  .modal-overlay.open { opacity: 1; pointer-events: all; }
+  .modal {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 16px; padding: 28px; width: 420px; max-width: 95vw;
+    transform: translateY(20px); transition: transform 0.3s;
+  }
+  .modal-overlay.open .modal { transform: translateY(0); }
+  .modal h2 { font-size: 1.1rem; font-weight: 800; margin-bottom: 6px; }
+  .modal p { font-size: 0.82rem; color: var(--muted); margin-bottom: 18px; line-height: 1.5; }
+  .modal input {
+    width: 100%; background: var(--surface); border: 1px solid var(--border);
+    color: var(--text); padding: 12px 16px; border-radius: 8px;
+    font-family: 'Space Mono', monospace; font-size: 0.85rem;
+    outline: none; margin-bottom: 14px; transition: all 0.2s;
+  }
+  .modal input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--glow); }
+  .modal-actions { display: flex; gap: 10px; justify-content: flex-end; }
+
+  /* STATUS TOAST */
+  .toast {
+    position: fixed; bottom: 28px; right: 28px;
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 10px; padding: 14px 20px;
+    font-size: 0.85rem; z-index: 9999;
+    transform: translateY(80px); opacity: 0;
+    transition: all 0.3s; max-width: 320px;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .toast.show { transform: translateY(0); opacity: 1; }
+  .toast.success { border-color: rgba(0,208,132,0.4); }
+  .toast.error { border-color: rgba(255,77,77,0.4); }
+  .toast.info { border-color: rgba(240,185,11,0.4); }
+  .toast-icon { font-size: 1.1rem; }
+
+  /* LOADING */
+  .spinner {
+    width: 18px; height: 18px; border: 2px solid var(--border);
+    border-top-color: var(--accent); border-radius: 50%;
+    animation: spin 0.7s linear infinite; display: inline-block;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .loading-overlay {
+    display: flex; align-items: center; justify-content: center;
+    gap: 10px; padding: 30px; color: var(--muted); font-size: 0.85rem;
+  }
+
+  /* EMPTY STATE */
+  .empty-state {
+    text-align: center; padding: 40px 20px; color: var(--muted);
+  }
+  .empty-state .icon { font-size: 2.5rem; margin-bottom: 12px; opacity: 0.4; }
+  .empty-state p { font-size: 0.85rem; line-height: 1.6; }
+
+  /* MONITOR WATCHLIST */
+  .watchlist-item {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 14px; background: var(--surface); border-radius: 8px;
+    border: 1px solid var(--border); margin-bottom: 8px;
+  }
+  .watchlist-item .wl-info { display: flex; align-items: center; gap: 10px; }
+  .watchlist-item .wl-name { font-size: 0.88rem; font-weight: 700; }
+  .watchlist-item .wl-change { font-family: 'Space Mono', monospace; font-size: 0.78rem; }
+  .remove-btn {
+    background: none; border: none; color: var(--muted); cursor: pointer;
+    font-size: 1rem; padding: 2px 6px; border-radius: 4px;
+    transition: color 0.2s;
+  }
+  .remove-btn:hover { color: var(--red); }
+
+  /* TABS */
+  .tabs {
+    display: flex; gap: 4px; background: var(--surface);
+    padding: 4px; border-radius: 10px; margin-bottom: 18px;
+  }
+  .tab-btn {
+    flex: 1; padding: 9px; border: none; background: transparent;
+    color: var(--muted); cursor: pointer; border-radius: 7px;
+    font-family: 'Syne', sans-serif; font-size: 0.82rem; font-weight: 600;
+    transition: all 0.2s;
+  }
+  .tab-btn.active {
+    background: var(--card); color: var(--text);
+    box-shadow: 0 1px 4px rgba(0,0,0,0.4);
+  }
+  .tab-pane { display: none; }
+  .tab-pane.active { display: block; }
+
+  /* SELECTED TOKEN HEADER */
+  .token-header {
+    display: flex; align-items: center; gap: 14px; margin-bottom: 16px;
+    padding-bottom: 16px; border-bottom: 1px solid var(--border);
+  }
+  .token-header-icon {
+    width: 52px; height: 52px; border-radius: 50%;
+    background: linear-gradient(135deg, #1a1a2e, #16213e);
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 800; font-size: 1rem; color: var(--accent);
+    border: 2px solid var(--border); overflow: hidden; flex-shrink: 0;
+  }
+  .token-header-icon img { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; }
+  .token-header-info h2 { font-size: 1.1rem; font-weight: 800; }
+  .token-header-info .sub { font-size: 0.78rem; color: var(--muted); font-family: 'Space Mono', monospace; margin-top: 4px; }
+
+  /* GENERATE BTN GLOW */
+  .btn-generate {
+    background: linear-gradient(135deg, #1a1a2e, #0d0d1a);
+    border: 1px solid rgba(240,185,11,0.4);
+    color: var(--accent); font-family: 'Syne', sans-serif;
+    font-weight: 700; font-size: 0.82rem; padding: 10px 16px;
+    border-radius: 8px; cursor: pointer; transition: all 0.2s;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .btn-generate:hover {
+    border-color: var(--accent); background: rgba(240,185,11,0.08);
+    box-shadow: 0 0 20px rgba(240,185,11,0.15);
+  }
+
+  .interval-select {
+    background: var(--surface); border: 1px solid var(--border);
+    color: var(--text); padding: 6px 10px; border-radius: 6px;
+    font-family: 'Space Mono', monospace; font-size: 0.8rem; outline: none;
+  }
+  .interval-select:focus { border-color: var(--accent); }
+
+  @media (max-width: 900px) {
+    .layout { grid-template-columns: 1fr; }
+    header { padding: 16px 20px; }
+    .layout { padding: 20px; }
+  }
+</style>
 </head>
 <body>
 
-<!-- ══════════════════════════════════════════════════════════
-     HEADER (sticky)
-     ══════════════════════════════════════════════════════════ -->
+<!-- HEADER -->
 <header>
   <div class="logo">
     <div class="logo-icon"></div>
@@ -26,452 +472,811 @@
   </div>
 </header>
 
-<!-- ══════════════════════════════════════════════════════════
-     MAIN NAV (sticky under header)
-     ══════════════════════════════════════════════════════════ -->
-<nav class="main-nav">
-  <button class="main-tab-btn active"  onclick="switchMainTab('signals',this)">📊 Signals</button>
-  <button class="main-tab-btn"         onclick="switchMainTab('news',this)">📰 Crypto News</button>
-  <button class="main-tab-btn"         onclick="switchMainTab('forex',this)">🌍 Forex/Macro</button>
-  <button class="main-tab-btn"         onclick="switchMainTab('whales',this)">🐋 Whales</button>
-  <button class="main-tab-btn"         onclick="switchMainTab('xfeed',this)">🐦 X Feed</button>
-  <button class="main-tab-btn"         onclick="switchMainTab('coinintel',this)">🔍 Coin Intel</button>
-</nav>
+<!-- MAIN -->
+<div class="layout">
 
-
-<!-- ══════════════════════════════════════════════════════════
-     TAB 1 — SIGNALS
-     ══════════════════════════════════════════════════════════ -->
-<div class="main-tab-pane active" id="mt-signals">
-  <div class="layout">
-
-    <!-- LEFT: SEARCH + TOKEN DATA -->
-    <div>
-      <div class="section-label">Token Search</div>
-      <div class="card" style="margin-bottom:20px">
-        <div class="search-wrap">
-          <input class="search-input" id="searchInput"
-                 placeholder="Search coin name, symbol or contract address..."
-                 onkeydown="if(event.key==='Enter') searchTokens()">
-          <button class="btn btn-primary" id="searchBtn" onclick="searchTokens()">Search</button>
-        </div>
-        <div id="tokenResults">
-          <div class="empty-state">
-            <div class="icon">🔍</div>
-            <p>Search any coin — BTC, ETH, or on-chain tokens</p>
-          </div>
-        </div>
+  <!-- LEFT: SEARCH + TOKEN DATA -->
+  <div class="left-col">
+    <div class="section-label">Token Search</div>
+    <div class="card" style="margin-bottom:20px">
+      <div class="search-wrap">
+        <input class="search-input" id="searchInput" placeholder="Search coin name, symbol or contract..." 
+               onkeydown="if(event.key==='Enter') searchTokens()">
+        <button class="btn btn-primary" id="searchBtn" onclick="searchTokens()">Search</button>
       </div>
-
-      <!-- TOKEN DETAIL -->
-      <div id="tokenDetailSection" style="display:none">
-        <div class="section-label">Token Detail</div>
-        <div class="card">
-          <div class="token-header" id="tokenHeader"></div>
-          <div class="tabs">
-            <button class="tab-btn active" onclick="switchInnerTab('market',this,this.closest('.card'))">Market</button>
-            <button class="tab-btn"        onclick="switchInnerTab('holders',this,this.closest('.card'))">Holders</button>
-            <button class="tab-btn"        onclick="switchInnerTab('about',this,this.closest('.card'))">About</button>
-          </div>
-          <div class="tab-pane active" id="tab-market"><div class="detail-grid" id="marketGrid"></div></div>
-          <div class="tab-pane"        id="tab-holders"><div class="detail-grid" id="holdersGrid"></div></div>
-          <div class="tab-pane"        id="tab-about"><div id="aboutContent"></div></div>
-          <div style="display:flex;gap:10px;margin-top:16px;flex-wrap:wrap">
-            <button class="btn-generate" onclick="generatePost()">✨ Generate Post</button>
-            <button class="btn btn-ghost" onclick="addToWatchlist()" style="font-size:0.82rem;padding:10px 14px">+ Add to Monitor</button>
-          </div>
+      <div id="tokenResults">
+        <div class="empty-state">
+          <div class="icon">🔍</div>
+          <p>Search for any token to get<br>real-time market data</p>
         </div>
       </div>
     </div>
 
-    <!-- RIGHT: COMPOSER + MONITOR -->
-    <div class="right-panel">
-
-      <div class="section-label">Post Composer</div>
-      <div class="card composer">
-        <textarea id="sig-postContent" oninput="syncComposer(this)"
-          placeholder="Select a token → Generate Post, or write your own post here..."></textarea>
-        <div class="char-count"><span id="sig-charCount">0</span> characters</div>
-        <div class="composer-actions">
-          <button class="btn btn-green" id="postBtn" onclick="doPost('sig-postContent',this)">🚀 Post to Square</button>
-          <button class="btn btn-ghost" onclick="document.getElementById('sig-postContent').value='';syncComposer(document.getElementById('sig-postContent'))" style="font-size:0.82rem">Clear</button>
-        </div>
-      </div>
-
-      <div class="section-label">Auto Monitor</div>
+    <!-- TOKEN DETAIL -->
+    <div id="tokenDetailSection" style="display:none">
+      <div class="section-label">Token Detail</div>
       <div class="card">
-        <div class="monitor-config">
-          <div class="config-row">
-            <div><label>Pump Threshold</label><span>Alert when price rises by</span></div>
-            <div style="display:flex;align-items:center;gap:6px">
-              <input class="threshold-input" id="pumpThreshold" type="number" value="5" min="1" max="100">
-              <span style="font-size:0.85rem;color:var(--muted)">%</span>
-            </div>
-          </div>
-          <div class="config-row">
-            <div><label>Check Interval</label><span>How often to fetch data</span></div>
-            <select class="select-input" id="checkInterval">
-              <option value="30000">30s</option>
-              <option value="60000" selected>1 min</option>
-              <option value="300000">5 min</option>
-            </select>
-          </div>
-          <div class="config-row">
-            <div><label>Auto-Post Alert</label><span>Post when pump detected</span></div>
-            <button class="toggle" id="autoPostToggle" onclick="this.classList.toggle('on')"></button>
-          </div>
-          <div class="config-row">
-            <div><label>Sound Alert</label><span>Play sound on pump</span></div>
-            <button class="toggle on" id="soundToggle" onclick="this.classList.toggle('on')"></button>
-          </div>
+        <div class="token-header" id="tokenHeader"></div>
+        <div class="tabs">
+          <button class="tab-btn active" onclick="switchTab('market',this)">Market Data</button>
+          <button class="tab-btn" onclick="switchTab('holders',this)">Holders</button>
+          <button class="tab-btn" onclick="switchTab('about',this)">About</button>
         </div>
-        <button class="btn btn-primary" id="monitorBtn" onclick="toggleMonitor()" style="width:100%;margin-top:16px">▶ Start Monitoring</button>
-      </div>
 
-      <div class="section-label">Watchlist</div>
-      <div class="card">
-        <div id="watchlistContainer">
-          <div class="empty-state" style="padding:20px">
-            <div class="icon" style="font-size:1.5rem">👁</div>
-            <p style="font-size:0.8rem">Add tokens to monitor</p>
-          </div>
+        <div class="tab-pane active" id="tab-market">
+          <div class="detail-grid" id="marketGrid"></div>
         </div>
-      </div>
-
-      <div class="section-label">Alerts Log</div>
-      <div class="card">
-        <div class="alerts-log" id="alertsLog">
-          <div class="empty-state" style="padding:16px">
-            <p style="font-size:0.8rem">Alerts appear here when monitoring is active</p>
-          </div>
+        <div class="tab-pane" id="tab-holders">
+          <div class="detail-grid" id="holdersGrid"></div>
         </div>
-      </div>
-
-    </div><!-- /right-panel -->
-  </div><!-- /layout -->
-</div>
-
-
-<!-- ══════════════════════════════════════════════════════════
-     TAB 2 — CRYPTO NEWS
-     ══════════════════════════════════════════════════════════ -->
-<div class="main-tab-pane" id="mt-news">
-  <div class="layout-full">
-    <div class="layout-cols">
-      <div>
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
-          <div class="section-label" style="margin-bottom:0;flex:1">Latest Crypto News</div>
-          <button class="btn btn-ghost" style="font-size:0.78rem" onclick="window._newsLoaded=false;loadNewsTab()">🔄 Refresh</button>
+        <div class="tab-pane" id="tab-about">
+          <div id="aboutContent"></div>
         </div>
-        <div id="news-feed"><div class="loading-overlay"><span class="spinner"></span> Loading...</div></div>
-      </div>
-      <div class="right-panel">
-        <div class="section-label">Selected News</div>
-        <div class="card">
-          <div id="news-preview">
-            <div class="empty-state" style="padding:20px">
-              <div class="icon" style="font-size:1.5rem">📰</div>
-              <p style="font-size:0.8rem">Click a news card to select</p>
-            </div>
-          </div>
-          <div style="margin-top:14px">
-            <button class="btn-generate" id="newsGenBtn" onclick="generateNewsPost()">✨ Generate Post</button>
-          </div>
-        </div>
-        <div class="section-label">Post Composer</div>
-        <div class="card composer">
-          <textarea id="news-postContent" oninput="syncComposer(this)" placeholder="Generated post will appear here..."></textarea>
-          <div class="char-count"><span id="news-charCount">0</span> characters</div>
-          <div class="composer-actions">
-            <button class="btn btn-green" onclick="doPost('news-postContent',this)">🚀 Post to Square</button>
-            <button class="btn btn-ghost" onclick="document.getElementById('news-postContent').value='';syncComposer(document.getElementById('news-postContent'))" style="font-size:0.82rem">Clear</button>
-          </div>
+
+        <div style="display:flex;gap:10px;margin-top:16px;flex-wrap:wrap">
+          <button class="btn-generate" onclick="generatePost()">
+            ✨ Generate Post
+          </button>
+          <button class="btn btn-ghost" onclick="addToWatchlist()" style="font-size:0.82rem;padding:10px 14px">
+            + Add to Monitor
+          </button>
         </div>
       </div>
     </div>
   </div>
-</div>
 
+  <!-- RIGHT: COMPOSE + MONITOR -->
+  <div class="right-panel">
 
-<!-- ══════════════════════════════════════════════════════════
-     TAB 3 — FOREX / MACRO
-     ══════════════════════════════════════════════════════════ -->
-<div class="main-tab-pane" id="mt-forex">
-  <div class="layout-full">
-    <div class="layout-cols">
-      <div>
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
-          <div class="section-label" style="margin-bottom:0;flex:1">Economic Calendar</div>
-          <button class="btn btn-ghost" style="font-size:0.78rem" onclick="window._forexLoaded=false;loadForexTab()">🔄 Refresh</button>
-        </div>
-        <div id="forex-feed"><div class="loading-overlay"><span class="spinner"></span> Loading...</div></div>
+    <!-- POST COMPOSER -->
+    <div class="section-label">Post Composer</div>
+    <div class="card composer">
+      <textarea id="postContent" placeholder="Select a token and click 'Generate Post', or write your own content here...
+
+Use #hashtags to categorize your post." oninput="updateCharCount()"></textarea>
+      <div class="char-count"><span id="charCount">0</span> characters</div>
+      <div class="composer-actions">
+        <button class="btn btn-green" onclick="postToSquare()" id="postBtn">🚀 Post to Square</button>
+        <button class="btn btn-ghost" onclick="clearComposer()" style="font-size:0.82rem">Clear</button>
       </div>
-      <div class="right-panel">
-        <div class="section-label">Event Detail</div>
-        <div class="card">
-          <div id="forex-preview">
-            <div class="empty-state" style="padding:20px">
-              <div class="icon" style="font-size:1.5rem">🌍</div>
-              <p style="font-size:0.8rem">Click an event to see crypto impact</p>
-            </div>
+    </div>
+
+    <!-- MONITOR -->
+    <div class="section-label">Auto Monitor</div>
+    <div class="card">
+      <div class="monitor-config">
+        <div class="config-row">
+          <div>
+            <label>Pump Threshold</label>
+            <span>Alert when price rises by</span>
           </div>
-          <div style="margin-top:14px">
-            <button class="btn-generate" id="forexGenBtn" onclick="generateForexPost()">✨ Generate Post</button>
+          <div style="display:flex;align-items:center;gap:6px">
+            <input class="threshold-input" id="pumpThreshold" type="number" value="5" min="1" max="100">
+            <span style="font-size:0.85rem;color:var(--muted)">%</span>
           </div>
         </div>
-        <div class="section-label">Post Composer</div>
-        <div class="card composer">
-          <textarea id="forex-postContent" oninput="syncComposer(this)" placeholder="Generated post will appear here..."></textarea>
-          <div class="char-count"><span id="forex-charCount">0</span> characters</div>
-          <div class="composer-actions">
-            <button class="btn btn-green" onclick="doPost('forex-postContent',this)">🚀 Post to Square</button>
-            <button class="btn btn-ghost" onclick="document.getElementById('forex-postContent').value='';syncComposer(document.getElementById('forex-postContent'))" style="font-size:0.82rem">Clear</button>
+        <div class="config-row">
+          <div>
+            <label>Check Interval</label>
+            <span>How often to fetch data</span>
           </div>
+          <select class="interval-select" id="checkInterval">
+            <option value="30000">30s</option>
+            <option value="60000" selected>1 min</option>
+            <option value="300000">5 min</option>
+            <option value="600000">10 min</option>
+          </select>
+        </div>
+        <div class="config-row">
+          <div>
+            <label>Auto-Post Alert</label>
+            <span>Auto post when pump detected</span>
+          </div>
+          <button class="toggle" id="autoPostToggle" onclick="this.classList.toggle('on')"></button>
+        </div>
+        <div class="config-row">
+          <div>
+            <label>Sound Alert</label>
+            <span>Play sound on pump detection</span>
+          </div>
+          <button class="toggle on" id="soundToggle" onclick="this.classList.toggle('on')"></button>
+        </div>
+      </div>
+      <button class="btn btn-primary" id="monitorBtn" onclick="toggleMonitor()" style="width:100%;margin-top:16px">
+        ▶ Start Monitoring
+      </button>
+    </div>
+
+    <!-- WATCHLIST -->
+    <div class="section-label">Watchlist</div>
+    <div class="card">
+      <div id="watchlistContainer">
+        <div class="empty-state" style="padding:20px">
+          <div class="icon" style="font-size:1.5rem">👁</div>
+          <p style="font-size:0.8rem">No tokens in watchlist.<br>Search a token and click "Add to Monitor"</p>
         </div>
       </div>
     </div>
-  </div>
-</div>
 
-
-<!-- ══════════════════════════════════════════════════════════
-     TAB 4 — WHALES
-     ══════════════════════════════════════════════════════════ -->
-<div class="main-tab-pane" id="mt-whales">
-  <div class="layout-full">
-    <div class="layout-cols">
-      <div>
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
-          <div class="section-label" style="margin-bottom:0;flex:1">Whale Movements</div>
-          <button class="btn btn-ghost" style="font-size:0.78rem" onclick="window._whalesLoaded=false;loadWhalesTab()">🔄 Refresh</button>
-        </div>
-        <div id="whales-feed"><div class="loading-overlay"><span class="spinner"></span> Loading...</div></div>
-      </div>
-      <div class="right-panel">
-        <div class="section-label">Transaction Detail</div>
-        <div class="card">
-          <div id="whale-preview">
-            <div class="empty-state" style="padding:20px">
-              <div class="icon" style="font-size:1.5rem">🐋</div>
-              <p style="font-size:0.8rem">Click a whale movement to analyze</p>
-            </div>
-          </div>
-          <div style="margin-top:14px">
-            <button class="btn-generate" id="whaleGenBtn" onclick="generateWhalePost()">✨ Generate Post</button>
-          </div>
-        </div>
-        <div class="section-label">Post Composer</div>
-        <div class="card composer">
-          <textarea id="whales-postContent" oninput="syncComposer(this)" placeholder="Generated post will appear here..."></textarea>
-          <div class="char-count"><span id="whales-charCount">0</span> characters</div>
-          <div class="composer-actions">
-            <button class="btn btn-green" onclick="doPost('whales-postContent',this)">🚀 Post to Square</button>
-            <button class="btn btn-ghost" onclick="document.getElementById('whales-postContent').value='';syncComposer(document.getElementById('whales-postContent'))" style="font-size:0.82rem">Clear</button>
-          </div>
+    <!-- ALERTS LOG -->
+    <div class="section-label">Alerts Log</div>
+    <div class="card">
+      <div class="alerts-log" id="alertsLog">
+        <div class="empty-state" style="padding:16px">
+          <p style="font-size:0.8rem">Alerts will appear here when<br>monitoring is active</p>
         </div>
       </div>
     </div>
+
   </div>
 </div>
 
-
-<!-- ══════════════════════════════════════════════════════════
-     TAB 5 — X FEED
-     ══════════════════════════════════════════════════════════ -->
-<div class="main-tab-pane" id="mt-xfeed">
-  <div class="layout-full">
-    <div class="layout-cols">
-      <div>
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px">
-          <div class="section-label" style="margin-bottom:0;flex:1">Crypto X Feed</div>
-          <div style="display:flex;gap:8px">
-            <input class="search-input" id="xHandleInput" placeholder="@handle" style="width:130px;padding:8px 12px;font-size:0.8rem">
-            <button class="btn btn-ghost" style="font-size:0.78rem" onclick="loadAccountFeed(document.getElementById('xHandleInput').value.replace('@',''))">Load</button>
-            <button class="btn btn-ghost" style="font-size:0.78rem" onclick="window._xfeedLoaded=false;loadXFeedTab()">🔄</button>
-          </div>
-        </div>
-        <div id="xfeed-container"><div class="loading-overlay"><span class="spinner"></span> Loading...</div></div>
-      </div>
-      <div class="right-panel">
-        <div class="section-label">Post Detail</div>
-        <div class="card">
-          <div id="xfeed-preview">
-            <div class="empty-state" style="padding:20px">
-              <div class="icon" style="font-size:1.5rem">🐦</div>
-              <p style="font-size:0.8rem">Click a post to see market impact</p>
-            </div>
-          </div>
-          <div style="margin-top:14px">
-            <button class="btn-generate" id="xGenBtn" onclick="generateXPost()">✨ Generate Post</button>
-          </div>
-        </div>
-        <div class="section-label">Post Composer</div>
-        <div class="card composer">
-          <textarea id="xfeed-postContent" oninput="syncComposer(this)" placeholder="Generated post will appear here..."></textarea>
-          <div class="char-count"><span id="xfeed-charCount">0</span> characters</div>
-          <div class="composer-actions">
-            <button class="btn btn-green" onclick="doPost('xfeed-postContent',this)">🚀 Post to Square</button>
-            <button class="btn btn-ghost" onclick="document.getElementById('xfeed-postContent').value='';syncComposer(document.getElementById('xfeed-postContent'))" style="font-size:0.82rem">Clear</button>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-</div>
-
-
-<!-- ══════════════════════════════════════════════════════════
-     TAB 6 — COIN INTEL
-     ══════════════════════════════════════════════════════════ -->
-<div class="main-tab-pane" id="mt-coinintel">
-  <div class="layout-full">
-    <div class="layout-cols">
-      <div>
-        <div class="section-label">Full Coin Analysis</div>
-        <div class="card" style="margin-bottom:20px">
-          <div class="search-wrap" style="margin-bottom:0">
-            <input class="search-input" id="intelSearchInput"
-                   placeholder="Enter coin name or symbol (e.g. Bitcoin, BNB, SOL)..."
-                   onkeydown="if(event.key==='Enter') runCoinIntel()">
-            <button class="btn btn-primary" id="intelSearchBtn" onclick="runCoinIntel()">🔍 Analyze</button>
-          </div>
-        </div>
-        <div id="intel-output">
-          <div class="empty-state">
-            <div class="icon">🔍</div>
-            <p>Enter any coin to get a full<br>technical + fundamental + social analysis</p>
-          </div>
-        </div>
-      </div>
-      <div class="right-panel">
-        <div class="section-label">Post Composer</div>
-        <div class="card composer">
-          <textarea id="intel-postContent" oninput="syncComposer(this)" placeholder="Click 'Generate Post' after analysis..."></textarea>
-          <div class="char-count"><span id="intel-charCount">0</span> characters</div>
-          <div class="composer-actions">
-            <button class="btn btn-green" onclick="doPost('intel-postContent',this)">🚀 Post to Square</button>
-            <button class="btn btn-ghost" onclick="document.getElementById('intel-postContent').value='';syncComposer(document.getElementById('intel-postContent'))" style="font-size:0.82rem">Clear</button>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-</div>
-
-
-<!-- ══════════════════════════════════════════════════════════
-     SHARED MODALS
-     ══════════════════════════════════════════════════════════ -->
-
-<!-- API Key Modal -->
+<!-- API KEY MODAL -->
 <div class="modal-overlay" id="apiModal">
-  <div class="modal" style="width:480px">
-    <h2>⚙ Configure API Keys</h2>
-    <p>Stored locally in your browser only. Never sent to any server except their own APIs.</p>
-
-    <label style="font-size:0.73rem;color:var(--muted);display:block;margin-bottom:5px">
-      🚀 Binance Square Key — for posting
-    </label>
-    <input type="password" id="apiKeyInput" placeholder="X-Square-OpenAPI-Key">
-
-    <label style="font-size:0.73rem;color:var(--muted);display:block;margin-bottom:5px;margin-top:10px">
-      🤖 Groq API Key — News/Forex/X/Intel post generation
-      <a href="https://console.groq.com/keys" target="_blank" style="color:var(--accent);text-decoration:none"> Free →</a>
-    </label>
-    <input type="password" id="groqKeyInput" placeholder="gsk_... (free at console.groq.com)">
-
-    <label style="font-size:0.73rem;color:var(--muted);display:block;margin-bottom:5px;margin-top:10px">
-      🐋 Whale Alert Key — real on-chain whale txns (optional)
-      <a href="https://whale-alert.io/api" target="_blank" style="color:var(--accent);text-decoration:none"> Free tier →</a>
-    </label>
-    <input type="text" id="whaleKeyInput" placeholder="whale alert api key (optional)">
-
-    <label style="font-size:0.73rem;color:var(--muted);display:block;margin-bottom:5px;margin-top:10px">
-      🔍 Etherscan Key — ETH whale transfers (optional)
-      <a href="https://etherscan.io/apis" target="_blank" style="color:var(--accent);text-decoration:none"> Free →</a>
-    </label>
-    <input type="text" id="ethKeyInput" placeholder="etherscan api key (optional)">
-
-    <label style="font-size:0.73rem;color:var(--muted);display:block;margin-bottom:5px;margin-top:10px">
-      📰 CryptoPanic Key — more crypto news (optional)
-      <a href="https://cryptopanic.com/developers/api" target="_blank" style="color:var(--accent);text-decoration:none"> Free →</a>
-    </label>
-    <input type="text" id="cpKeyInput" placeholder="cryptopanic auth token (optional)">
-
-    <div class="modal-actions" style="margin-top:16px">
+  <div class="modal">
+    <h2>⚙ Configure API Key</h2>
+    <p>Enter your Binance Square OpenAPI Key to enable posting. Your key is stored locally in your browser only.</p>
+    <input type="password" id="apiKeyInput" placeholder="Your X-Square-OpenAPI-Key...">
+    <div class="modal-actions">
       <button class="btn btn-ghost" onclick="closeApiModal()">Cancel</button>
-      <button class="btn btn-primary" onclick="saveApiKey()">Save Keys</button>
+      <button class="btn btn-primary" onclick="saveApiKey()">Save Key</button>
     </div>
   </div>
 </div>
 
-<!-- Toast -->
+<!-- TOAST -->
 <div class="toast" id="toast">
   <span class="toast-icon" id="toastIcon"></span>
   <span id="toastMsg"></span>
 </div>
 
-
-<!-- ══════════════════════════════════════════════════════════
-     SCRIPTS — ORDER MATTERS: core first, then tabs
-     ══════════════════════════════════════════════════════════ -->
-<script src="core.js"></script>
-<script src="signals.js"></script>
-<script src="news.js"></script>
-<script src="forex.js"></script>
-<script src="whales.js"></script>
-<script src="xfeed.js"></script>
-<script src="coinintel.js"></script>
-
 <script>
-// ── Composer helpers (tab-aware) ─────────────────────────
+// ===================== STATE =====================
+let apiKey = localStorage.getItem('sq_api_key') || '';
+let selectedToken = null;
+let watchlist = JSON.parse(localStorage.getItem('sq_watchlist') || '[]');
+let monitorInterval = null;
+let isMonitoring = false;
+let tokenPriceCache = {};
 
-// Each tab has its own textarea with id: {tab}-postContent
-// syncComposer keeps charCount in sync
-function syncComposer(ta) {
-  const id  = ta.id.replace('-postContent', '-charCount');
-  const cnt = document.getElementById(id);
-  if (cnt) cnt.textContent = ta.value.length;
+// ===================== INIT =====================
+document.addEventListener('DOMContentLoaded', () => {
+  updateApiKeyBtn();
+  renderWatchlist();
+});
+
+// ===================== API KEY =====================
+function openApiModal() {
+  document.getElementById('apiKeyInput').value = apiKey;
+  document.getElementById('apiModal').classList.add('open');
+}
+function closeApiModal() {
+  document.getElementById('apiModal').classList.remove('open');
+}
+function saveApiKey() {
+  const key = document.getElementById('apiKeyInput').value.trim();
+  if (!key) { showToast('error', '❌', 'Please enter an API key'); return; }
+  apiKey = key;
+  localStorage.setItem('sq_api_key', key);
+  updateApiKeyBtn();
+  closeApiModal();
+  showToast('success', '✅', 'API Key saved successfully');
+}
+function updateApiKeyBtn() {
+  const btn = document.getElementById('apiKeyBtn');
+  if (apiKey) {
+    const masked = apiKey.substring(0,5) + '...' + apiKey.slice(-4);
+    btn.textContent = '✓ ' + masked;
+    btn.classList.add('configured');
+  } else {
+    btn.textContent = '⚙ API Key';
+    btn.classList.remove('configured');
+  }
 }
 
-// doPost(textareaId, btnEl) — used by all tab Post buttons
-async function doPost(taId, btnEl) {
-  const ta = document.getElementById(taId);
-  if (!ta) return;
-  await postToSquare(ta.value, btnEl);
+// ===================== SEARCH =====================
+async function searchTokens() {
+  const kw = document.getElementById('searchInput').value.trim();
+  if (!kw) { showToast('info','🔍','Enter a search keyword'); return; }
+
+  const btn = document.getElementById('searchBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>';
+  document.getElementById('tokenResults').innerHTML = '<div class="loading-overlay"><span class="spinner"></span> Searching...</div>';
+
+  try {
+    const url = `https://web3.binance.com/bapi/defi/v5/public/wallet-direct/buw/wallet/market/token/search?keyword=${encodeURIComponent(kw)}&chainIds=56,8453,CT_501&orderBy=volume24h`;
+    const res = await fetch(url, { headers: { 'Accept-Encoding': 'identity' } });
+    const data = await res.json();
+
+    if (data.success && data.data && data.data.length > 0) {
+      renderTokenResults(data.data.slice(0, 8));
+    } else {
+      document.getElementById('tokenResults').innerHTML = `
+        <div class="empty-state">
+          <div class="icon">😕</div>
+          <p>No tokens found for "<strong>${kw}</strong>"</p>
+        </div>`;
+    }
+  } catch(e) {
+    document.getElementById('tokenResults').innerHTML = `
+      <div class="empty-state">
+        <div class="icon">⚠</div>
+        <p>Error fetching data.<br><small style="font-family:monospace">${e.message}</small></p>
+      </div>`;
+  }
+
+  btn.disabled = false;
+  btn.textContent = 'Search';
 }
 
-// loadComposer(content) — called by generate functions in tab JS files
-// Writes to the active tab's textarea
-function loadComposer(content) {
-  const idMap = {
-    signals:   'sig-postContent',
-    news:      'news-postContent',
-    forex:     'forex-postContent',
-    whales:    'whales-postContent',
-    xfeed:     'xfeed-postContent',
-    coinintel: 'intel-postContent',
+function renderTokenResults(tokens) {
+  const html = tokens.map(t => {
+    const change = parseFloat(t.percentChange24h || 0);
+    const changeClass = change >= 0 ? 'up' : 'down';
+    const changeSign = change >= 0 ? '+' : '';
+    const chainLabel = getChainLabel(t.chainId);
+    const iconUrl = t.icon ? `https://bin.bnbstatic.com${t.icon}` : '';
+    const iconHtml = iconUrl
+      ? `<img src="${iconUrl}" onerror="this.parentElement.textContent='${(t.symbol||'?').substring(0,2).toUpperCase()}'"`+` alt="">`
+      : (t.symbol||'?').substring(0,2).toUpperCase();
+
+    return `<div class="token-item" onclick="selectToken(${JSON.stringify(t).replace(/"/g,'&quot;')})">
+      <div class="token-icon">${iconHtml}</div>
+      <div class="token-info">
+        <h3>${t.name || t.symbol} <span class="chain-badge ${chainLabel.cls}">${chainLabel.name}</span></h3>
+        <p>${t.symbol} • Vol: $${formatNum(t.volume24h)}</p>
+      </div>
+      <div class="token-price">
+        <div class="price">$${formatPrice(t.price)}</div>
+        <div class="change ${changeClass}">${changeSign}${change.toFixed(2)}%</div>
+      </div>
+    </div>`;
+  }).join('');
+  document.getElementById('tokenResults').innerHTML = `<div class="token-list">${html}</div>`;
+}
+
+// ===================== TOKEN SELECTION =====================
+async function selectToken(tokenData) {
+  // Highlight selected
+  document.querySelectorAll('.token-item').forEach(el => el.classList.remove('selected'));
+  event.currentTarget.classList.add('selected');
+
+  selectedToken = tokenData;
+  document.getElementById('tokenDetailSection').style.display = 'block';
+
+  // Load dynamic data
+  renderTokenHeader(tokenData);
+  renderMarketData(tokenData, null);
+
+  try {
+    const [dynRes, metaRes] = await Promise.all([
+      fetch(`https://web3.binance.com/bapi/defi/v4/public/wallet-direct/buw/wallet/market/token/dynamic/info?chainId=${tokenData.chainId}&contractAddress=${tokenData.contractAddress}`, { headers: {'Accept-Encoding':'identity'} }),
+      fetch(`https://web3.binance.com/bapi/defi/v1/public/wallet-direct/buw/wallet/dex/market/token/meta/info?chainId=${tokenData.chainId}&contractAddress=${tokenData.contractAddress}`, { headers: {'Accept-Encoding':'identity'} })
+    ]);
+    const dyn = await dynRes.json();
+    const meta = await metaRes.json();
+
+    if (dyn.success) {
+      selectedToken._dyn = dyn.data;
+      renderMarketData(tokenData, dyn.data);
+      renderHoldersData(dyn.data);
+    }
+    if (meta.success) {
+      selectedToken._meta = meta.data;
+      renderAboutData(meta.data);
+    }
+  } catch(e) {
+    console.error(e);
+  }
+
+  document.getElementById('tokenDetailSection').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+function renderTokenHeader(t) {
+  const chainLabel = getChainLabel(t.chainId);
+  const iconUrl = t.icon ? `https://bin.bnbstatic.com${t.icon}` : '';
+  const iconHtml = iconUrl
+    ? `<img src="${iconUrl}" onerror="this.parentElement.textContent='${(t.symbol||'?').substring(0,2).toUpperCase()}'" alt="">`
+    : (t.symbol||'?').substring(0,2).toUpperCase();
+
+  document.getElementById('tokenHeader').innerHTML = `
+    <div class="token-header-icon">${iconHtml}</div>
+    <div class="token-header-info">
+      <h2>${t.name} (${t.symbol})</h2>
+      <div class="sub">
+        <span class="chain-badge ${chainLabel.cls}">${chainLabel.name}</span>
+        <span style="margin-left:8px">${t.contractAddress ? t.contractAddress.substring(0,8)+'...' : ''}</span>
+      </div>
+    </div>`;
+}
+
+function renderMarketData(t, dyn) {
+  const d = dyn || t;
+  const price = dyn ? dyn.price : t.price;
+  const change = parseFloat(dyn ? dyn.percentChange24h : t.percentChange24h || 0);
+  const changeClass = change >= 0 ? 'green' : 'red';
+  const changeSign = change >= 0 ? '+' : '';
+
+  document.getElementById('marketGrid').innerHTML = `
+    ${statBox('Price', '$'+formatPrice(price), change >= 0 ? 'gold' : 'red')}
+    ${statBox('24h Change', changeSign+change.toFixed(2)+'%', changeClass)}
+    ${statBox('Volume 24h', '$'+formatNum(d.volume24h), '')}
+    ${statBox('Market Cap', '$'+formatNum(d.marketCap || t.marketCap), '')}
+    ${statBox('Liquidity', '$'+formatNum(d.liquidity || t.liquidity), '')}
+    ${dyn ? statBox('Holders', formatNum(dyn.holders), '') : ''}
+    ${dyn ? statBox('High 24h', '$'+formatPrice(dyn.priceHigh24h), 'green') : ''}
+    ${dyn ? statBox('Low 24h', '$'+formatPrice(dyn.priceLow24h), 'red') : ''}
+    ${dyn ? statBox('Txns 24h', formatNum(dyn.count24h), '') : ''}
+    ${dyn ? statBox('Buys/Sells', dyn.count24hBuy+' / '+dyn.count24hSell, '') : ''}
+  `;
+}
+
+function renderHoldersData(dyn) {
+  document.getElementById('holdersGrid').innerHTML = `
+    ${statBox('Total Holders', formatNum(dyn.holders), '')}
+    ${statBox('Top 10 Hold%', parseFloat(dyn.top10HoldersPercentage||0).toFixed(1)+'%', '')}
+    ${statBox('KYC Holders', formatNum(dyn.kycHolderCount), 'green')}
+    ${statBox('KOL Holders', dyn.kolHolders||'0', '')}
+    ${statBox('KOL Hold%', parseFloat(dyn.kolHoldingPercent||0).toFixed(4)+'%', '')}
+    ${statBox('Smart Money', dyn.smartMoneyHolders||'0', '')}
+    ${statBox('Total Supply', formatNum(dyn.totalSupply), '')}
+    ${statBox('Circ. Supply', formatNum(dyn.circulatingSupply), '')}
+  `;
+}
+
+function renderAboutData(meta) {
+  const links = (meta.links || []).map(l =>
+    `<a href="${l.link}" target="_blank" style="color:var(--accent);font-size:0.8rem;text-decoration:none;
+    background:rgba(240,185,11,0.08);padding:4px 10px;border-radius:6px;border:1px solid rgba(240,185,11,0.2)">
+    ${l.label}</a>`
+  ).join('');
+
+  document.getElementById('aboutContent').innerHTML = `
+    ${meta.description ? `<p style="font-size:0.85rem;color:var(--muted);line-height:1.6;margin-bottom:14px">${meta.description}</p>` : ''}
+    ${meta.creatorAddress ? `<p style="font-family:'Space Mono',monospace;font-size:0.72rem;color:var(--muted);margin-bottom:12px">
+      Creator: ${meta.creatorAddress}</p>` : ''}
+    ${links ? `<div style="display:flex;flex-wrap:wrap;gap:8px">${links}</div>` : '<p style="color:var(--muted);font-size:0.82rem">No additional info</p>'}
+  `;
+}
+
+function statBox(label, val, cls) {
+  return `<div class="stat-box"><label>${label}</label><div class="val ${cls}">${val||'—'}</div></div>`;
+}
+
+// ===================== GENERATE POST =====================
+async function generatePost() {
+  if (!selectedToken) { showToast('info','ℹ','Select a token first'); return; }
+
+  const genBtn = document.querySelector('.btn-generate');
+  genBtn.innerHTML = '<span class="spinner"></span> Fetching news...';
+  genBtn.style.pointerEvents = 'none';
+
+  const t = selectedToken;
+  const dyn = t._dyn || {};
+  const change24h = parseFloat(dyn.percentChange24h || t.percentChange24h || 0);
+  const change1h  = parseFloat(dyn.percentChange1h || 0);
+  const price     = dyn.price || t.price;
+  const vol       = dyn.volume24h || t.volume24h;
+  const changeSign = change24h >= 0 ? '🟢' : '🔴';
+  const momentum   = change24h >= 5 ? '🚀 PUMPING HARD'
+                   : change24h >= 2 ? '📈 Bullish Move'
+                   : change24h >= 0 ? '↗️ Slightly Green'
+                   : change24h > -5 ? '📉 Slight Dip'
+                   : '🔴 Dumping';
+
+  // Fetch news via Claude API
+  let newsSection = '';
+  try {
+    newsSection = await fetchCoinNews(t.name, t.symbol);
+  } catch(e) {
+    newsSection = '📰 No recent news found.';
+  }
+
+  const template = `${changeSign} $${t.symbol} — ${momentum}!
+
+💰 Price: $${formatPrice(price)}
+📊 24h Change: ${change24h >= 0 ? '+' : ''}${change24h.toFixed(2)}%
+${change1h ? `⚡ 1h Change: ${change1h >= 0 ? '+' : ''}${change1h.toFixed(2)}%` : ''}
+📦 Volume 24h: $${formatNum(vol)}
+${dyn.holders ? `👥 Holders: ${formatNum(dyn.holders)}` : ''}
+${dyn.marketCap ? `📈 Market Cap: $${formatNum(dyn.marketCap)}` : ''}
+
+${getInsightLine(change24h, dyn)}
+
+📰 Latest News:
+${newsSection}
+
+#${t.symbol} #${t.name.replace(/\s+/g,'')} #${getChainLabel(t.chainId).name} #Crypto #BinanceSquare`;
+
+  document.getElementById('postContent').value = template.trim();
+  updateCharCount();
+  showToast('success','✨','Post generated with latest news!');
+
+  genBtn.innerHTML = '✨ Generate Post';
+  genBtn.style.pointerEvents = '';
+}
+
+// Fetch latest coin news using Claude API with web search
+async function fetchCoinNews(coinName, coinSymbol) {
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 1000,
+      tools: [{ type: 'web_search_20250305', name: 'web_search' }],
+      system: `You are a crypto news summarizer. Search for the latest news about the given coin and return ONLY 2-3 bullet points (each starting with •) summarizing the most important recent developments. Be concise, factual, and neutral. No intro text, no outro, just the bullet points. Max 3 lines total.`,
+      messages: [{
+        role: 'user',
+        content: `Find the latest news (last 7 days) about ${coinName} (${coinSymbol}) cryptocurrency. Return only 2-3 bullet points.`
+      }]
+    })
+  });
+
+  const data = await res.json();
+  // Extract text from content blocks
+  const text = (data.content || [])
+    .filter(b => b.type === 'text')
+    .map(b => b.text)
+    .join('\n')
+    .trim();
+
+  return text || '• No recent news available at this time.';
+}
+
+function getInsightLine(change, dyn) {
+  const buyRatio = dyn.count24hBuy && dyn.count24hSell
+    ? (parseInt(dyn.count24hBuy) / (parseInt(dyn.count24hBuy)+parseInt(dyn.count24hSell)) * 100).toFixed(0)
+    : null;
+
+  if (change >= 10) return `🔥 Massive pump! DYOR before chasing.`;
+  if (change >= 5) return `Strong bullish momentum. ${buyRatio ? `Buy pressure at ${buyRatio}% of trades.` : 'Watch for continuation.'}`;
+  if (change >= 0) return `Holding steady in green zone. ${buyRatio ? `Buyers dominating at ${buyRatio}%.` : ''}`;
+  if (change > -5) return `Slight correction — could be an entry opportunity. DYOR.`;
+  return `Bearish pressure. Wait for support before entering. DYOR.`;
+}
+
+// ===================== POST TO SQUARE =====================
+async function postToSquare() {
+  const content = document.getElementById('postContent').value.trim();
+  if (!content) { showToast('info','📝','Write something first'); return; }
+  if (!apiKey) { showToast('error','🔑','Configure your API Key first'); openApiModal(); return; }
+
+  const btn = document.getElementById('postBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Posting...';
+
+  try {
+    const res = await fetch('https://www.binance.com/bapi/composite/v1/public/pgc/openApi/content/add', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Square-OpenAPI-Key': apiKey,
+        'clienttype': 'binanceSkill'
+      },
+      body: JSON.stringify({ bodyTextOnly: content })
+    });
+    const data = await res.json();
+
+    if (data.code === '000000') {
+      const postId = data.data?.id;
+      const url = postId ? `https://www.binance.com/square/post/${postId}` : null;
+      showToast('success','🚀', url ? `Posted! <a href="${url}" target="_blank" style="color:var(--accent)">View Post</a>` : 'Posted to Binance Square!');
+      addAlertLog('posted', `✅ Posted: ${content.substring(0,40)}...`, url);
+      document.getElementById('postContent').value = '';
+      updateCharCount();
+    } else {
+      const errMsg = getPostError(data.code);
+      showToast('error','❌', errMsg);
+    }
+  } catch(e) {
+    showToast('error','⚠','Network error. Check console.');
+    console.error(e);
+  }
+
+  btn.disabled = false;
+  btn.innerHTML = '🚀 Post to Square';
+}
+
+function getPostError(code) {
+  const codes = {
+    '10004':'Network error. Try again.',
+    '10005':'Identity verification required.',
+    '20002':'Sensitive words detected.',
+    '20013':'Content too long.',
+    '220003':'API Key not found.',
+    '220004':'API Key expired.',
+    '220009':'Daily post limit reached.',
+    '220011':'Content body empty.',
+    '2000001':'Account blocked.',
   };
-  const taId = idMap[SP.activeMainTab] || 'sig-postContent';
-  const ta   = document.getElementById(taId);
-  if (ta) { ta.value = content || ''; syncComposer(ta); }
+  return codes[code] || `Error code: ${code}`;
 }
 
-// switchInnerTab — for token detail tabs (market/holders/about)
-function switchInnerTab(name, btn, parent) {
-  parent.querySelectorAll('.tab-btn').forEach(b  => b.classList.remove('active'));
-  parent.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
-  btn.classList.add('active');
-  const pane = parent.querySelector('#tab-' + name);
-  if (pane) pane.classList.add('active');
+// ===================== WATCHLIST =====================
+function addToWatchlist() {
+  if (!selectedToken) { showToast('info','ℹ','Select a token first'); return; }
+  const t = selectedToken;
+  const exists = watchlist.find(w => w.contractAddress === t.contractAddress && w.chainId === t.chainId);
+  if (exists) { showToast('info','👁',`${t.symbol} already in watchlist`); return; }
+
+  watchlist.push({
+    name: t.name, symbol: t.symbol, chainId: t.chainId,
+    contractAddress: t.contractAddress, icon: t.icon,
+    basePrice: parseFloat(t._dyn?.price || t.price || 0),
+    addedAt: Date.now()
+  });
+  localStorage.setItem('sq_watchlist', JSON.stringify(watchlist));
+  renderWatchlist();
+  showToast('success','👁',`${t.symbol} added to watchlist`);
 }
 
-// switchTab alias so signals.js inner tabs still work
+function removeFromWatchlist(idx) {
+  watchlist.splice(idx, 1);
+  localStorage.setItem('sq_watchlist', JSON.stringify(watchlist));
+  renderWatchlist();
+}
+
+function renderWatchlist() {
+  const container = document.getElementById('watchlistContainer');
+  if (watchlist.length === 0) {
+    container.innerHTML = `<div class="empty-state" style="padding:20px"><div class="icon" style="font-size:1.5rem">👁</div><p style="font-size:0.8rem">No tokens in watchlist.<br>Search a token and click "Add to Monitor"</p></div>`;
+    return;
+  }
+
+  container.innerHTML = watchlist.map((t, i) => {
+    const chainLabel = getChainLabel(t.chainId);
+    const currentChange = t.currentChange !== undefined ? t.currentChange : 0;
+    const changeClass = currentChange >= 0 ? 'up' : 'down';
+    const changeSign = currentChange >= 0 ? '+' : '';
+    return `<div class="watchlist-item">
+      <div class="wl-info">
+        <div class="token-icon" style="width:34px;height:34px;font-size:0.7rem">${t.symbol.substring(0,2)}</div>
+        <div>
+          <div class="wl-name">${t.symbol} <span class="chain-badge ${chainLabel.cls}">${chainLabel.name}</span></div>
+          <div class="wl-change change ${changeClass}" style="margin-top:3px">${changeSign}${currentChange.toFixed(2)}% from add</div>
+        </div>
+      </div>
+      <button class="remove-btn" onclick="removeFromWatchlist(${i})">✕</button>
+    </div>`;
+  }).join('');
+}
+
+// ===================== MONITOR =====================
+async function toggleMonitor() {
+  if (isMonitoring) {
+    stopMonitor();
+  } else {
+    startMonitor();
+  }
+}
+
+function startMonitor() {
+  if (watchlist.length === 0) {
+    showToast('info','👁','Add tokens to watchlist first');
+    return;
+  }
+  isMonitoring = true;
+  const interval = parseInt(document.getElementById('checkInterval').value);
+
+  document.getElementById('monitorBtn').textContent = '⏹ Stop Monitoring';
+  document.getElementById('monitorBtn').style.background = 'var(--red)';
+  document.getElementById('monitorBadge').classList.add('active');
+  document.getElementById('monitorStatus').textContent = 'Monitoring...';
+
+  checkAllTokens(); // immediate first check
+  monitorInterval = setInterval(checkAllTokens, interval);
+  showToast('success','✅','Monitoring started!');
+}
+
+function stopMonitor() {
+  isMonitoring = false;
+  clearInterval(monitorInterval);
+  document.getElementById('monitorBtn').textContent = '▶ Start Monitoring';
+  document.getElementById('monitorBtn').style.background = '';
+  document.getElementById('monitorBadge').classList.remove('active');
+  document.getElementById('monitorStatus').textContent = 'Monitor Off';
+  showToast('info','⏹','Monitoring stopped');
+}
+
+async function checkAllTokens() {
+  const threshold = parseFloat(document.getElementById('pumpThreshold').value) || 5;
+
+  for (let i = 0; i < watchlist.length; i++) {
+    const t = watchlist[i];
+    try {
+      const res = await fetch(`https://web3.binance.com/bapi/defi/v4/public/wallet-direct/buw/wallet/market/token/dynamic/info?chainId=${t.chainId}&contractAddress=${t.contractAddress}`,
+        { headers: {'Accept-Encoding':'identity'} });
+      const data = await res.json();
+      if (data.success && data.data) {
+        const currentPrice = parseFloat(data.data.price);
+        const basePrice = t.basePrice || currentPrice;
+        const changeFromBase = ((currentPrice - basePrice) / basePrice) * 100;
+        const change24h = parseFloat(data.data.percentChange24h || 0);
+
+        watchlist[i].currentPrice = currentPrice;
+        watchlist[i].currentChange = changeFromBase;
+
+        // Check pump condition (24h change)
+        if (Math.abs(change24h) >= threshold) {
+          const isPump = change24h > 0;
+          const alreadyAlerted = tokenPriceCache[t.contractAddress]?.alerted;
+          const cacheChange = tokenPriceCache[t.contractAddress]?.change24h;
+
+          // Only alert once per significant threshold crossing
+          if (!alreadyAlerted || Math.abs(change24h - (cacheChange||0)) > 2) {
+            triggerAlert(t, change24h, data.data, isPump);
+            tokenPriceCache[t.contractAddress] = { alerted: true, change24h };
+          }
+        } else {
+          if (tokenPriceCache[t.contractAddress]) {
+            tokenPriceCache[t.contractAddress].alerted = false;
+          }
+        }
+      }
+    } catch(e) { console.error('Monitor error:', t.symbol, e); }
+  }
+  renderWatchlist();
+}
+
+async function triggerAlert(token, change, dynData, isPump) {
+  const sign = change >= 0 ? '+' : '';
+  const emoji = isPump ? '🚀' : '📉';
+  const type = isPump ? 'pump' : 'dump';
+
+  // Sound alert
+  if (document.getElementById('soundToggle').classList.contains('on')) {
+    playAlertSound(isPump);
+  }
+
+  // Visual toast
+  showToast(isPump ? 'success' : 'error', emoji,
+    `${token.symbol} ${isPump ? 'PUMPED' : 'DUMPED'} ${sign}${change.toFixed(2)}% in 24h!`);
+
+  // Log
+  addAlertLog(type, `${emoji} ${token.symbol}: ${sign}${change.toFixed(2)}% 24h | $${formatPrice(dynData.price)}`);
+
+  // Auto-post
+  if (document.getElementById('autoPostToggle').classList.contains('on') && apiKey) {
+    const postText = generateAlertPost(token, change, dynData, isPump);
+    await autoPost(postText, token.symbol);
+  }
+}
+
+function generateAlertPost(token, change, dyn, isPump) {
+  const sign = change >= 0 ? '+' : '';
+  const emoji = isPump ? '🚀' : '⚠️';
+  return `${emoji} ALERT: $${token.symbol} ${isPump ? 'PUMPING' : 'DUMPING'}!
+
+📊 24h Change: ${sign}${change.toFixed(2)}%
+💰 Current Price: $${formatPrice(dyn.price)}
+📦 Volume 24h: $${formatNum(dyn.volume24h)}
+👥 Holders: ${formatNum(dyn.holders)}
+
+${isPump ? '🔥 Strong bullish momentum detected!' : '⚠️ Selling pressure increasing. DYOR before entering.'}
+
+#${token.symbol} #CryptoAlert #BinanceSquare`;
+}
+
+async function autoPost(content, symbol) {
+  try {
+    const res = await fetch('https://www.binance.com/bapi/composite/v1/public/pgc/openApi/content/add', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Square-OpenAPI-Key': apiKey,
+        'clienttype': 'binanceSkill'
+      },
+      body: JSON.stringify({ bodyTextOnly: content })
+    });
+    const data = await res.json();
+    if (data.code === '000000') {
+      const postId = data.data?.id;
+      addAlertLog('posted', `✅ Auto-posted alert for ${symbol}`, postId ? `https://www.binance.com/square/post/${postId}` : null);
+    }
+  } catch(e) { console.error('Auto-post error:', e); }
+}
+
+// ===================== ALERTS LOG =====================
+function addAlertLog(type, message, url) {
+  const log = document.getElementById('alertsLog');
+  // Remove empty state
+  const emptyState = log.querySelector('.empty-state');
+  if (emptyState) emptyState.remove();
+
+  const time = new Date().toLocaleTimeString();
+  const linkHtml = url ? `<a href="${url}" target="_blank" style="color:var(--accent);font-size:0.72rem;text-decoration:none">View →</a>` : '';
+
+  const el = document.createElement('div');
+  el.className = `alert-item ${type}`;
+  el.innerHTML = `<div class="alert-title">${message}</div>
+    <div class="alert-time">${time} ${linkHtml}</div>`;
+
+  log.insertBefore(el, log.firstChild);
+
+  // Max 20 alerts
+  while (log.children.length > 20) log.removeChild(log.lastChild);
+}
+
+// ===================== SOUND =====================
+function playAlertSound(isPump) {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const freqs = isPump ? [440, 554, 659] : [330, 277, 220];
+    freqs.forEach((freq, i) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain); gain.connect(ctx.destination);
+      osc.frequency.value = freq;
+      osc.type = 'sine';
+      gain.gain.setValueAtTime(0.3, ctx.currentTime + i*0.15);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + i*0.15 + 0.4);
+      osc.start(ctx.currentTime + i*0.15);
+      osc.stop(ctx.currentTime + i*0.15 + 0.4);
+    });
+  } catch(e) {}
+}
+
+// ===================== UTILS =====================
+function formatPrice(p) {
+  if (!p) return '0.00';
+  const n = parseFloat(p);
+  if (n >= 1000) return n.toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2});
+  if (n >= 1) return n.toFixed(4);
+  if (n >= 0.0001) return n.toFixed(6);
+  return n.toExponential(4);
+}
+
+function formatNum(n) {
+  if (!n) return '0';
+  const num = parseFloat(n);
+  if (num >= 1e9) return (num/1e9).toFixed(2)+'B';
+  if (num >= 1e6) return (num/1e6).toFixed(2)+'M';
+  if (num >= 1e3) return (num/1e3).toFixed(2)+'K';
+  return Math.round(num).toLocaleString();
+}
+
+function getChainLabel(chainId) {
+  const chains = {
+    '56': { name: 'BSC', cls: 'chain-bsc' },
+    '8453': { name: 'Base', cls: 'chain-base' },
+    'CT_501': { name: 'Solana', cls: 'chain-sol' },
+  };
+  return chains[chainId] || { name: chainId, cls: 'chain-bsc' };
+}
+
+function updateCharCount() {
+  const len = document.getElementById('postContent').value.length;
+  document.getElementById('charCount').textContent = len;
+}
+
+function clearComposer() {
+  document.getElementById('postContent').value = '';
+  updateCharCount();
+}
+
 function switchTab(name, btn) {
-  const parent = btn.closest('.card');
-  if (parent) switchInnerTab(name, btn, parent);
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('tab-'+name).classList.add('active');
 }
-</script>
 
+let toastTimer;
+function showToast(type, icon, msg) {
+  const toast = document.getElementById('toast');
+  document.getElementById('toastIcon').textContent = icon;
+  document.getElementById('toastMsg').innerHTML = msg;
+  toast.className = `toast show ${type}`;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => toast.classList.remove('show'), 4000);
+}
+
+// Close modal on overlay click
+document.getElementById('apiModal').addEventListener('click', function(e) {
+  if (e.target === this) closeApiModal();
+});
+</script>
 </body>
 </html>

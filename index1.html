@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SquarePulse — Crypto Intelligence Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════════════════════
+     HEADER (sticky)
+     ══════════════════════════════════════════════════════════ -->
+<header>
+  <div class="logo">
+    <div class="logo-icon"></div>
+    <h1>Square<span>Pulse</span></h1>
+  </div>
+  <div class="header-right">
+    <div class="monitor-badge" id="monitorBadge">
+      <div class="dot"></div>
+      <span id="monitorStatus">Monitor Off</span>
+    </div>
+    <button class="api-key-btn" id="apiKeyBtn" onclick="openApiModal()">⚙ API Key</button>
+  </div>
+</header>
+
+<!-- ══════════════════════════════════════════════════════════
+     MAIN NAV (sticky under header)
+     ══════════════════════════════════════════════════════════ -->
+<nav class="main-nav">
+  <button class="main-tab-btn active"  onclick="switchMainTab('signals',this)">📊 Signals</button>
+  <button class="main-tab-btn"         onclick="switchMainTab('news',this)">📰 Crypto News</button>
+  <button class="main-tab-btn"         onclick="switchMainTab('forex',this)">🌍 Forex/Macro</button>
+  <button class="main-tab-btn"         onclick="switchMainTab('whales',this)">🐋 Whales</button>
+  <button class="main-tab-btn"         onclick="switchMainTab('xfeed',this)">🐦 X Feed</button>
+  <button class="main-tab-btn"         onclick="switchMainTab('coinintel',this)">🔍 Coin Intel</button>
+</nav>
+
+
+<!-- ══════════════════════════════════════════════════════════
+     TAB 1 — SIGNALS
+     ══════════════════════════════════════════════════════════ -->
+<div class="main-tab-pane active" id="mt-signals">
+  <div class="layout">
+
+    <!-- LEFT: SEARCH + TOKEN DATA -->
+    <div>
+      <div class="section-label">Token Search</div>
+      <div class="card" style="margin-bottom:20px">
+        <div class="search-wrap">
+          <input class="search-input" id="searchInput"
+                 placeholder="Search coin name, symbol or contract address..."
+                 onkeydown="if(event.key==='Enter') searchTokens()">
+          <button class="btn btn-primary" id="searchBtn" onclick="searchTokens()">Search</button>
+        </div>
+        <div id="tokenResults">
+          <div class="empty-state">
+            <div class="icon">🔍</div>
+            <p>Search any coin — BTC, ETH, or on-chain tokens</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- TOKEN DETAIL -->
+      <div id="tokenDetailSection" style="display:none">
+        <div class="section-label">Token Detail</div>
+        <div class="card">
+          <div class="token-header" id="tokenHeader"></div>
+          <div class="tabs">
+            <button class="tab-btn active" onclick="switchInnerTab('market',this,this.closest('.card'))">Market</button>
+            <button class="tab-btn"        onclick="switchInnerTab('holders',this,this.closest('.card'))">Holders</button>
+            <button class="tab-btn"        onclick="switchInnerTab('about',this,this.closest('.card'))">About</button>
+          </div>
+          <div class="tab-pane active" id="tab-market"><div class="detail-grid" id="marketGrid"></div></div>
+          <div class="tab-pane"        id="tab-holders"><div class="detail-grid" id="holdersGrid"></div></div>
+          <div class="tab-pane"        id="tab-about"><div id="aboutContent"></div></div>
+          <div style="display:flex;gap:10px;margin-top:16px;flex-wrap:wrap">
+            <button class="btn-generate" onclick="generatePost()">✨ Generate Post</button>
+            <button class="btn btn-ghost" onclick="addToWatchlist()" style="font-size:0.82rem;padding:10px 14px">+ Add to Monitor</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT: COMPOSER + MONITOR -->
+    <div class="right-panel">
+
+      <div class="section-label">Post Composer</div>
+      <div class="card composer">
+        <textarea id="sig-postContent" oninput="syncComposer(this)"
+          placeholder="Select a token → Generate Post, or write your own post here..."></textarea>
+        <div class="char-count"><span id="sig-charCount">0</span> characters</div>
+        <div class="composer-actions">
+          <button class="btn btn-green" id="postBtn" onclick="doPost('sig-postContent',this)">🚀 Post to Square</button>
+          <button class="btn btn-ghost" onclick="document.getElementById('sig-postContent').value='';syncComposer(document.getElementById('sig-postContent'))" style="font-size:0.82rem">Clear</button>
+        </div>
+      </div>
+
+      <div class="section-label">Auto Monitor</div>
+      <div class="card">
+        <div class="monitor-config">
+          <div class="config-row">
+            <div><label>Pump Threshold</label><span>Alert when price rises by</span></div>
+            <div style="display:flex;align-items:center;gap:6px">
+              <input class="threshold-input" id="pumpThreshold" type="number" value="5" min="1" max="100">
+              <span style="font-size:0.85rem;color:var(--muted)">%</span>
+            </div>
+          </div>
+          <div class="config-row">
+            <div><label>Check Interval</label><span>How often to fetch data</span></div>
+            <select class="select-input" id="checkInterval">
+              <option value="30000">30s</option>
+              <option value="60000" selected>1 min</option>
+              <option value="300000">5 min</option>
+            </select>
+          </div>
+          <div class="config-row">
+            <div><label>Auto-Post Alert</label><span>Post when pump detected</span></div>
+            <button class="toggle" id="autoPostToggle" onclick="this.classList.toggle('on')"></button>
+          </div>
+          <div class="config-row">
+            <div><label>Sound Alert</label><span>Play sound on pump</span></div>
+            <button class="toggle on" id="soundToggle" onclick="this.classList.toggle('on')"></button>
+          </div>
+        </div>
+        <button class="btn btn-primary" id="monitorBtn" onclick="toggleMonitor()" style="width:100%;margin-top:16px">▶ Start Monitoring</button>
+      </div>
+
+      <div class="section-label">Watchlist</div>
+      <div class="card">
+        <div id="watchlistContainer">
+          <div class="empty-state" style="padding:20px">
+            <div class="icon" style="font-size:1.5rem">👁</div>
+            <p style="font-size:0.8rem">Add tokens to monitor</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="section-label">Alerts Log</div>
+      <div class="card">
+        <div class="alerts-log" id="alertsLog">
+          <div class="empty-state" style="padding:16px">
+            <p style="font-size:0.8rem">Alerts appear here when monitoring is active</p>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /right-panel -->
+  </div><!-- /layout -->
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════════
+     TAB 2 — CRYPTO NEWS
+     ══════════════════════════════════════════════════════════ -->
+<div class="main-tab-pane" id="mt-news">
+  <div class="layout-full">
+    <div class="layout-cols">
+      <div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+          <div class="section-label" style="margin-bottom:0;flex:1">Latest Crypto News</div>
+          <button class="btn btn-ghost" style="font-size:0.78rem" onclick="window._newsLoaded=false;loadNewsTab()">🔄 Refresh</button>
+        </div>
+        <div id="news-feed"><div class="loading-overlay"><span class="spinner"></span> Loading...</div></div>
+      </div>
+      <div class="right-panel">
+        <div class="section-label">Selected News</div>
+        <div class="card">
+          <div id="news-preview">
+            <div class="empty-state" style="padding:20px">
+              <div class="icon" style="font-size:1.5rem">📰</div>
+              <p style="font-size:0.8rem">Click a news card to select</p>
+            </div>
+          </div>
+          <div style="margin-top:14px">
+            <button class="btn-generate" id="newsGenBtn" onclick="generateNewsPost()">✨ Generate Post</button>
+          </div>
+        </div>
+        <div class="section-label">Post Composer</div>
+        <div class="card composer">
+          <textarea id="news-postContent" oninput="syncComposer(this)" placeholder="Generated post will appear here..."></textarea>
+          <div class="char-count"><span id="news-charCount">0</span> characters</div>
+          <div class="composer-actions">
+            <button class="btn btn-green" onclick="doPost('news-postContent',this)">🚀 Post to Square</button>
+            <button class="btn btn-ghost" onclick="document.getElementById('news-postContent').value='';syncComposer(document.getElementById('news-postContent'))" style="font-size:0.82rem">Clear</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════════
+     TAB 3 — FOREX / MACRO
+     ══════════════════════════════════════════════════════════ -->
+<div class="main-tab-pane" id="mt-forex">
+  <div class="layout-full">
+    <div class="layout-cols">
+      <div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+          <div class="section-label" style="margin-bottom:0;flex:1">Economic Calendar</div>
+          <button class="btn btn-ghost" style="font-size:0.78rem" onclick="window._forexLoaded=false;loadForexTab()">🔄 Refresh</button>
+        </div>
+        <div id="forex-feed"><div class="loading-overlay"><span class="spinner"></span> Loading...</div></div>
+      </div>
+      <div class="right-panel">
+        <div class="section-label">Event Detail</div>
+        <div class="card">
+          <div id="forex-preview">
+            <div class="empty-state" style="padding:20px">
+              <div class="icon" style="font-size:1.5rem">🌍</div>
+              <p style="font-size:0.8rem">Click an event to see crypto impact</p>
+            </div>
+          </div>
+          <div style="margin-top:14px">
+            <button class="btn-generate" id="forexGenBtn" onclick="generateForexPost()">✨ Generate Post</button>
+          </div>
+        </div>
+        <div class="section-label">Post Composer</div>
+        <div class="card composer">
+          <textarea id="forex-postContent" oninput="syncComposer(this)" placeholder="Generated post will appear here..."></textarea>
+          <div class="char-count"><span id="forex-charCount">0</span> characters</div>
+          <div class="composer-actions">
+            <button class="btn btn-green" onclick="doPost('forex-postContent',this)">🚀 Post to Square</button>
+            <button class="btn btn-ghost" onclick="document.getElementById('forex-postContent').value='';syncComposer(document.getElementById('forex-postContent'))" style="font-size:0.82rem">Clear</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════════
+     TAB 4 — WHALES
+     ══════════════════════════════════════════════════════════ -->
+<div class="main-tab-pane" id="mt-whales">
+  <div class="layout-full">
+    <div class="layout-cols">
+      <div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+          <div class="section-label" style="margin-bottom:0;flex:1">Whale Movements</div>
+          <button class="btn btn-ghost" style="font-size:0.78rem" onclick="window._whalesLoaded=false;loadWhalesTab()">🔄 Refresh</button>
+        </div>
+        <div id="whales-feed"><div class="loading-overlay"><span class="spinner"></span> Loading...</div></div>
+      </div>
+      <div class="right-panel">
+        <div class="section-label">Transaction Detail</div>
+        <div class="card">
+          <div id="whale-preview">
+            <div class="empty-state" style="padding:20px">
+              <div class="icon" style="font-size:1.5rem">🐋</div>
+              <p style="font-size:0.8rem">Click a whale movement to analyze</p>
+            </div>
+          </div>
+          <div style="margin-top:14px">
+            <button class="btn-generate" id="whaleGenBtn" onclick="generateWhalePost()">✨ Generate Post</button>
+          </div>
+        </div>
+        <div class="section-label">Post Composer</div>
+        <div class="card composer">
+          <textarea id="whales-postContent" oninput="syncComposer(this)" placeholder="Generated post will appear here..."></textarea>
+          <div class="char-count"><span id="whales-charCount">0</span> characters</div>
+          <div class="composer-actions">
+            <button class="btn btn-green" onclick="doPost('whales-postContent',this)">🚀 Post to Square</button>
+            <button class="btn btn-ghost" onclick="document.getElementById('whales-postContent').value='';syncComposer(document.getElementById('whales-postContent'))" style="font-size:0.82rem">Clear</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════════
+     TAB 5 — X FEED
+     ══════════════════════════════════════════════════════════ -->
+<div class="main-tab-pane" id="mt-xfeed">
+  <div class="layout-full">
+    <div class="layout-cols">
+      <div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px">
+          <div class="section-label" style="margin-bottom:0;flex:1">Crypto X Feed</div>
+          <div style="display:flex;gap:8px">
+            <input class="search-input" id="xHandleInput" placeholder="@handle" style="width:130px;padding:8px 12px;font-size:0.8rem">
+            <button class="btn btn-ghost" style="font-size:0.78rem" onclick="loadAccountFeed(document.getElementById('xHandleInput').value.replace('@',''))">Load</button>
+            <button class="btn btn-ghost" style="font-size:0.78rem" onclick="window._xfeedLoaded=false;loadXFeedTab()">🔄</button>
+          </div>
+        </div>
+        <div id="xfeed-container"><div class="loading-overlay"><span class="spinner"></span> Loading...</div></div>
+      </div>
+      <div class="right-panel">
+        <div class="section-label">Post Detail</div>
+        <div class="card">
+          <div id="xfeed-preview">
+            <div class="empty-state" style="padding:20px">
+              <div class="icon" style="font-size:1.5rem">🐦</div>
+              <p style="font-size:0.8rem">Click a post to see market impact</p>
+            </div>
+          </div>
+          <div style="margin-top:14px">
+            <button class="btn-generate" id="xGenBtn" onclick="generateXPost()">✨ Generate Post</button>
+          </div>
+        </div>
+        <div class="section-label">Post Composer</div>
+        <div class="card composer">
+          <textarea id="xfeed-postContent" oninput="syncComposer(this)" placeholder="Generated post will appear here..."></textarea>
+          <div class="char-count"><span id="xfeed-charCount">0</span> characters</div>
+          <div class="composer-actions">
+            <button class="btn btn-green" onclick="doPost('xfeed-postContent',this)">🚀 Post to Square</button>
+            <button class="btn btn-ghost" onclick="document.getElementById('xfeed-postContent').value='';syncComposer(document.getElementById('xfeed-postContent'))" style="font-size:0.82rem">Clear</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════════
+     TAB 6 — COIN INTEL
+     ══════════════════════════════════════════════════════════ -->
+<div class="main-tab-pane" id="mt-coinintel">
+  <div class="layout-full">
+    <div class="layout-cols">
+      <div>
+        <div class="section-label">Full Coin Analysis</div>
+        <div class="card" style="margin-bottom:20px">
+          <div class="search-wrap" style="margin-bottom:0">
+            <input class="search-input" id="intelSearchInput"
+                   placeholder="Enter coin name or symbol (e.g. Bitcoin, BNB, SOL)..."
+                   onkeydown="if(event.key==='Enter') runCoinIntel()">
+            <button class="btn btn-primary" id="intelSearchBtn" onclick="runCoinIntel()">🔍 Analyze</button>
+          </div>
+        </div>
+        <div id="intel-output">
+          <div class="empty-state">
+            <div class="icon">🔍</div>
+            <p>Enter any coin to get a full<br>technical + fundamental + social analysis</p>
+          </div>
+        </div>
+      </div>
+      <div class="right-panel">
+        <div class="section-label">Post Composer</div>
+        <div class="card composer">
+          <textarea id="intel-postContent" oninput="syncComposer(this)" placeholder="Click 'Generate Post' after analysis..."></textarea>
+          <div class="char-count"><span id="intel-charCount">0</span> characters</div>
+          <div class="composer-actions">
+            <button class="btn btn-green" onclick="doPost('intel-postContent',this)">🚀 Post to Square</button>
+            <button class="btn btn-ghost" onclick="document.getElementById('intel-postContent').value='';syncComposer(document.getElementById('intel-postContent'))" style="font-size:0.82rem">Clear</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════════
+     SHARED MODALS
+     ══════════════════════════════════════════════════════════ -->
+
+<!-- API Key Modal -->
+<div class="modal-overlay" id="apiModal">
+  <div class="modal" style="width:480px">
+    <h2>⚙ Configure API Keys</h2>
+    <p>Stored locally in your browser only. Never sent to any server except their own APIs.</p>
+
+    <label style="font-size:0.73rem;color:var(--muted);display:block;margin-bottom:5px">
+      🚀 Binance Square Key — for posting
+    </label>
+    <input type="password" id="apiKeyInput" placeholder="X-Square-OpenAPI-Key">
+
+    <label style="font-size:0.73rem;color:var(--muted);display:block;margin-bottom:5px;margin-top:10px">
+      🤖 Groq API Key — News/Forex/X/Intel post generation
+      <a href="https://console.groq.com/keys" target="_blank" style="color:var(--accent);text-decoration:none"> Free →</a>
+    </label>
+    <input type="password" id="groqKeyInput" placeholder="gsk_... (free at console.groq.com)">
+
+    <label style="font-size:0.73rem;color:var(--muted);display:block;margin-bottom:5px;margin-top:10px">
+      🐋 Whale Alert Key — real on-chain whale txns (optional)
+      <a href="https://whale-alert.io/api" target="_blank" style="color:var(--accent);text-decoration:none"> Free tier →</a>
+    </label>
+    <input type="text" id="whaleKeyInput" placeholder="whale alert api key (optional)">
+
+    <label style="font-size:0.73rem;color:var(--muted);display:block;margin-bottom:5px;margin-top:10px">
+      🔍 Etherscan Key — ETH whale transfers (optional)
+      <a href="https://etherscan.io/apis" target="_blank" style="color:var(--accent);text-decoration:none"> Free →</a>
+    </label>
+    <input type="text" id="ethKeyInput" placeholder="etherscan api key (optional)">
+
+    <label style="font-size:0.73rem;color:var(--muted);display:block;margin-bottom:5px;margin-top:10px">
+      📰 CryptoPanic Key — more crypto news (optional)
+      <a href="https://cryptopanic.com/developers/api" target="_blank" style="color:var(--accent);text-decoration:none"> Free →</a>
+    </label>
+    <input type="text" id="cpKeyInput" placeholder="cryptopanic auth token (optional)">
+
+    <div class="modal-actions" style="margin-top:16px">
+      <button class="btn btn-ghost" onclick="closeApiModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveApiKey()">Save Keys</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast">
+  <span class="toast-icon" id="toastIcon"></span>
+  <span id="toastMsg"></span>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════════
+     SCRIPTS — ORDER MATTERS: core first, then tabs
+     ══════════════════════════════════════════════════════════ -->
+<script src="core.js"></script>
+<script src="signals.js"></script>
+<script src="news.js"></script>
+<script src="forex.js"></script>
+<script src="whales.js"></script>
+<script src="xfeed.js"></script>
+<script src="coinintel.js"></script>
+
+<script>
+// ── Composer helpers (tab-aware) ─────────────────────────
+
+// Each tab has its own textarea with id: {tab}-postContent
+// syncComposer keeps charCount in sync
+function syncComposer(ta) {
+  const id  = ta.id.replace('-postContent', '-charCount');
+  const cnt = document.getElementById(id);
+  if (cnt) cnt.textContent = ta.value.length;
+}
+
+// doPost(textareaId, btnEl) — used by all tab Post buttons
+async function doPost(taId, btnEl) {
+  const ta = document.getElementById(taId);
+  if (!ta) return;
+  await postToSquare(ta.value, btnEl);
+}
+
+// loadComposer(content) — called by generate functions in tab JS files
+// Writes to the active tab's textarea
+function loadComposer(content) {
+  const idMap = {
+    signals:   'sig-postContent',
+    news:      'news-postContent',
+    forex:     'forex-postContent',
+    whales:    'whales-postContent',
+    xfeed:     'xfeed-postContent',
+    coinintel: 'intel-postContent',
+  };
+  const taId = idMap[SP.activeMainTab] || 'sig-postContent';
+  const ta   = document.getElementById(taId);
+  if (ta) { ta.value = content || ''; syncComposer(ta); }
+}
+
+// switchInnerTab — for token detail tabs (market/holders/about)
+function switchInnerTab(name, btn, parent) {
+  parent.querySelectorAll('.tab-btn').forEach(b  => b.classList.remove('active'));
+  parent.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+  btn.classList.add('active');
+  const pane = parent.querySelector('#tab-' + name);
+  if (pane) pane.classList.add('active');
+}
+
+// switchTab alias so signals.js inner tabs still work
+function switchTab(name, btn) {
+  const parent = btn.closest('.card');
+  if (parent) switchInnerTab(name, btn, parent);
+}
+</script>
+
+</body>
+</html>

@@ -1403,14 +1403,12 @@ async function postToSquare() {
   btn.innerHTML = '<span class="spinner"></span> Posting...';
 
   try {
-    const res = await fetch('https://www.binance.com/bapi/composite/v1/public/pgc/openApi/content/add', {
+    const res = await fetch('/api/proxy', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'X-Square-OpenAPI-Key': apiKey,
-        'clienttype': 'binanceSkill'
       },
-      body: JSON.stringify({ bodyTextOnly: content })
+      body: JSON.stringify({ apiKey, content })
     });
     const data = await res.json();
 
@@ -1616,14 +1614,12 @@ ${isPump ? '🔥 Strong bullish momentum detected!' : '⚠️ Selling pressure i
 
 async function autoPost(content, symbol) {
   try {
-    const res = await fetch('https://www.binance.com/bapi/composite/v1/public/pgc/openApi/content/add', {
+    const res = await fetch('/api/proxy', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'X-Square-OpenAPI-Key': apiKey,
-        'clienttype': 'binanceSkill'
       },
-      body: JSON.stringify({ bodyTextOnly: content })
+      body: JSON.stringify({ apiKey, content })
     });
     const data = await res.json();
     if (data.code === '000000') {

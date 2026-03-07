@@ -285,9 +285,7 @@
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px">
           <div class="section-label" style="margin-bottom:0;flex:1">Crypto X Feed</div>
           <div style="display:flex;gap:8px">
-            <input class="search-input" id="xHandleInput" placeholder="@handle" style="width:130px;padding:8px 12px;font-size:0.8rem">
-            <button class="btn btn-ghost" style="font-size:0.78rem" onclick="loadAccountFeed(document.getElementById('xHandleInput').value.replace('@',''))">Load</button>
-            <button class="btn btn-ghost" style="font-size:0.78rem" onclick="window._xfeedLoaded=false;loadXFeedTab()">🔄</button>
+            <button class="btn btn-ghost" style="font-size:0.78rem" onclick="window._xfeedLoaded=false;loadXfeedTab()">🔄 Refresh</button>
           </div>
         </div>
         <div id="xfeed-container"><div class="loading-overlay"><span class="spinner"></span> Loading...</div></div>
@@ -330,10 +328,7 @@
         <div class="section-label">Full Coin Analysis</div>
         <div class="card" style="margin-bottom:20px">
           <div class="search-wrap" style="margin-bottom:0">
-            <input class="search-input" id="intelSearchInput"
-                   placeholder="Enter coin name or symbol (e.g. Bitcoin, BNB, SOL)..."
-                   onkeydown="if(event.key==='Enter') runCoinIntel()">
-            <button class="btn btn-primary" id="intelSearchBtn" onclick="runCoinIntel()">🔍 Analyze</button>
+            <button class="btn btn-primary" id="intelSearchBtn" onclick="loadCoinIntelTab()">🔍 Refresh Coin Data</button>
           </div>
         </div>
         <div id="intel-output">

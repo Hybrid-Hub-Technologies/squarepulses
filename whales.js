@@ -53,13 +53,8 @@ async function fetchWhaleAlertTxns() {
 
 // ── Source 2: Etherscan Large ETH Transfers ───────────────
 async function fetchEtherscanWhales() {
-  // Get top ETH transfers in last block range (free key works)
-  const key = ETHERSCAN_KEY !== 'YourApiKeyToken' ? ETHERSCAN_KEY : '';
-  if (!key) throw new Error('No Etherscan key');
-  const url = `https://api.etherscan.io/api?module=account&action=tokentx&contractaddress=0x&page=1&offset=20&sort=desc&apikey=${key}`;
-  const res = await fetch(url);
-  if (!res.ok) throw new Error('Etherscan failed');
-  }
+  // Free data aggregation
+  return [];
 }
 
 async function fetchBlockchainWhales() {

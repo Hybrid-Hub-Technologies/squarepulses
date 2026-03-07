@@ -19,8 +19,8 @@ async function loadXfeedTab() {
     renderXFeed(posts);
   } catch(e) {
     container.innerHTML = `<div class="empty-state"><div class="icon">🐦</div>
-      <p>Could not load X feed.<br><small>${e.message}</small></p></div>`;
-      <button class="btn btn-ghost" style="margin-top:16px" onclick="window._xfeedLoaded=false;loadXFeedTab()">Retry</button></div>`;
+      <p>Could not load X feed.<br><small>${e.message}</small></p>
+      <button class="btn btn-ghost" style="margin-top:16px" onclick="window._xfeedLoaded=false;loadXfeedTab()">Retry</button></div>`;
   }
 }
 

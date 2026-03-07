@@ -98,6 +98,9 @@ function guessCategory(text) {
   if (/fed|inflation|cpi|macro|rate/.test(t))   return 'Macro';
   if (/binance|coinbase|exchange|hack/.test(t)) return 'Exchange';
   if (/solana|sol|bnb|xrp|cardano/.test(t))     return 'Altcoins';
+  return 'General';
+}
+
 function renderNewsFeed(items) {
   const container = document.getElementById('news-feed');
   if (!container) return;
@@ -164,4 +167,6 @@ async function generateNewsPost() {
   if (genBtn) {
     genBtn.innerHTML = '✨ Generate Post';
     genBtn.style.pointerEvents = '';
+  }
+}
  

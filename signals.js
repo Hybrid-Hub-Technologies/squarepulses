@@ -3,29 +3,8 @@
 // Depends on: core.js (must be loaded first)
 // ============================================================
 
-// ── State ────────────────────────────────────────────────
-let selectedToken   = null;
-let monitorInterval = null;
-let isMonitoring    = false;
-let tokenPriceCache = {};
-
-// ── Init ─────────────────────────────────────────────────
-document.addEventListener('DOMContentLoaded', () => {
-  renderWatchlist();
-});
-
-// ── Signals state (SP object is in core.js) ──────────────
-let selectedToken   = null;
-let watchlist       = SP.watchlist;
-let monitorInterval = null;
-let isMonitoring    = false;
-let tokenPriceCache = {};
-
-// ===================== INIT =====================
-document.addEventListener('DOMContentLoaded', () => {
-  updateApiKeyBtn();
-  renderWatchlist();
-});
+// Note: State variables (selectedToken, watchlist, monitorInterval, etc.)
+// are declared in index1.html to avoid conflicts with inline scripts
 
 // ===================== SMART SEARCH =====================
 // Auto-detect: CoinGecko for major/CEX coins, Binance DEX for on-chain

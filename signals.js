@@ -543,8 +543,8 @@ async function fetchMultiTimeframeSignal(token) {
   const resistance = baseTf.resistance;
   const support    = baseTf.support;
 
-  const tp1Mult = term === 'SHORT' ? 1.03 : term === 'MID' ? 1.05 : term === 'LONG' ? 1.07 : 1.09;
-  const tp2Mult = term === 'SHORT' ? 1.06 : term === 'MID' ? 1.10 : term === 'LONG' ? 1.15 : 1.20;
+  const tp1Mult = term === 'SHORT' ? 1.005 : term === 'MID' ? 1.01 : term === 'LONG' ? 1.015 : 1.02;
+  const tp2Mult = term === 'SHORT' ? 1.02 : term === 'MID' ? 1.05 : term === 'LONG' ? 1.08 : 1.10;
   const slMult  = term === 'SHORT' ? 0.97 : term === 'MID' ? 0.955 : 0.94;
 
   const entryLow  = current * 0.995;

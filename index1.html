@@ -904,21 +904,78 @@ function showToast(type, icon, msg) {
 }
 
 function openApiModal() {
-  const key = localStorage.getItem('sq_api_key') || '';
-  document.getElementById('apiKeyInput').value = key;
+  // Load all keys from localStorage
+  document.getElementById('apiKeyInput').value = localStorage.getItem('sq_api_key') || '';
+  document.getElementById('groqKeyInput').value = localStorage.getItem('sq_groq_key') || '';
+  document.getElementById('whaleKeyInput').value = localStorage.getItem('sq_whale_key') || '';
+  document.getElementById('ethKeyInput').value = localStorage.getItem('sq_eth_key') || '';
+  document.getElementById('cpKeyInput').value = localStorage.getItem('sq_cp_key') || '';
+  
   document.getElementById('apiModal').classList.add('open');
+  updateApiKeyIndicators();
 }
 
 function closeApiModal() {
   document.getElementById('apiModal').classList.remove('open');
 }
 
+function updateApiKeyIndicators() {
+  // Visual feedback for saved keys (add green border/checkmark)
+  const inputs = [
+    { id: 'apiKeyInput', key: 'sq_api_key' },
+    { id: 'groqKeyInput', key: 'sq_groq_key' },
+    { id: 'whaleKeyInput', key: 'sq_whale_key' },
+    { id: 'ethKeyInput', key: 'sq_eth_key' },
+    { id: 'cpKeyInput', key: 'sq_cp_key' }
+  ];
+  
+  inputs.forEach(({ id, key }) => {
+    const el = document.getElementById(id);
+    const saved = localStorage.getItem(key);
+    if (saved) {
+      el.style.borderColor = '#4ade80';
+      el.style.boxShadow = '0 0 0 3px rgba(74, 222, 128, 0.1)';
+    } else {
+      el.style.borderColor = '';
+      el.style.boxShadow = '';
+    }
+  });
+}
+
 function saveApiKey() {
-  const key = document.getElementById('apiKeyInput').value.trim();
-  if (!key) { showToast('error','❌','Please enter an API key'); return; }
-  localStorage.setItem('sq_api_key', key);
-  closeApiModal();
-  showToast('success','✅','API Key saved');
+  const binanceKey = document.getElementById('apiKeyInput').value.trim();
+  const groqKey = document.getElementById('groqKeyInput').value.trim();
+  const whaleKey = document.getElementById('whaleKeyInput').value.trim();
+  const ethKey = document.getElementById('ethKeyInput').value.trim();
+  const cpKey = document.getElementById('cpKeyInput').value.trim();
+  
+  if (!binanceKey) {
+    showToast('error','❌','Please enter Binance Square API key');
+    return;
+  }
+  
+  // Save all keys to localStorage
+  localStorage.setItem('sq_api_key', binanceKey);
+  if (groqKey) localStorage.setItem('sq_groq_key', groqKey);
+  if (whaleKey) localStorage.setItem('sq_whale_key', whaleKey);
+  if (ethKey) localStorage.setItem('sq_eth_key', ethKey);
+  if (cpKey) localStorage.setItem('sq_cp_key', cpKey);
+  
+  // Update SP object in memory
+  SP.apiKey = binanceKey;
+  SP.groqKey = groqKey;
+  SP.waKey = whaleKey;
+  SP.ethKey = ethKey;
+  SP.cpKey = cpKey;
+  
+  // Update visual feedback
+  updateApiKeyIndicators();
+  if (typeof updateApiKeyBtn === 'function') updateApiKeyBtn(); // Call core.js version if available
+  
+  showToast('success','✅','API Keys saved! 🟢');
+  
+  // Close after delay
+  setTimeout(() => closeApiModal(), 500);
 }
 
 </script>
@@ -1028,9 +1085,7 @@ function switchTab(name, btn) {
   if (parent) switchInnerTab(name, btn, parent);
 }
 
-// ── Main tab switching ───────────────────────────────
-const SP = { activeMainTab: 'signals' };
-
+// ── Main tab switching (using SP from core.js) ───────────
 function switchMainTab(tabName, btn) {
   document.querySelectorAll('.main-tab-btn').forEach(b => b.classList.remove('active'));
   document.querySelectorAll('.main-tab-pane').forEach(p => p.classList.remove('active'));
@@ -1060,11 +1115,40 @@ function generateWhalePost() { showToast('info','ℹ','Whale post generation com
 
 // ── Init on page load ────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
+  // Initialize state
   renderWatchlist();
+  updateApiKeyButton();
+  
+  // Modal close handler
   document.getElementById('apiModal').addEventListener('click', function(e) {
     if (e.target === this) closeApiModal();
   });
+  
+  // Auto-load signals tab on startup (data is ready)
+  console.log('✅ SquarePulse Dashboard loaded');
 });
+
+// Update API button to show status
+function updateApiKeyButton() {
+  const btn = document.getElementById('apiKeyBtn');
+  const hasBinance = !!localStorage.getItem('sq_api_key');
+  const hasGroq = !!localStorage.getItem('sq_groq_key');
+  const hasExtra = !!localStorage.getItem('sq_whale_key');
+  
+  let label = '⚙';
+  if (hasBinance && hasGroq) {
+    label = '⚙ ✅';
+    btn.style.color = '#4ade80';
+  } else if (hasBinance) {
+    label = '⚙ 🔑';
+    btn.style.color = '#f0b90b';
+  } else {
+    label = '⚙ ⚠';
+    btn.style.color = 'var(--red)';
+  }
+  
+  btn.textContent = label;
+}
 </script>
 
 </body>

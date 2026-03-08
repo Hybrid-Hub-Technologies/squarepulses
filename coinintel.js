@@ -445,8 +445,11 @@ Risk Level: ${c.riskLevel}
 From ATH: -${c.athDropPct}%
 Supply Circulating: ${fmtNum(c.circSupply)} / ${c.maxSupply ? fmtNum(c.maxSupply) : '∞'}
 
-Write an engaging post (250-400 chars):
+Write an engaging post (400-500 chars):
 - Give a clear bullish/bearish/neutral stance
+- Highlight key strengths and risks
+- Provide actionable insights for traders
+- Suggest who might be interested in this coin (e.g. "good for long-term holders", "potential swing trade", etc.)
 - Mention key numbers
 - Use emojis
 - Add hashtags: #${c.symbol} #CryptoAnalysis #Binance

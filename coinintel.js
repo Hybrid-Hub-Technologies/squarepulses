@@ -447,17 +447,17 @@ Supply Circulating: ${fmtNum(c.circSupply)} / ${c.maxSupply ? fmtNum(c.maxSupply
 
 Write an engaging post (400-500 chars):
 - Give a clear bullish/bearish/neutral stance
-- Highlight key strengths and risks
-- Provide actionable insights for traders
-- Suggest who might be interested in this coin (e.g. "good for long-term holders", "potential swing trade", etc.)
 - Mention key numbers with a bit of flair (e.g. "surging with a 75 momentum score", "facing resistance after dropping 30% from ATH", etc.)
 - Mention entry/exit points if relevant (e.g. "watch for a bounce at $X", "could see a breakout above $Y", etc.)
 - Try to give a Buying and selling price if someone buy it where they can sell it for a profit.
 - Give 2 to 3 TP (take profit) levels if someone buy it and 1 or 2 SL (stop loss) levels if someone buy it.
 - TP1: $X (conservative target), TP2: $Y (aggressive target)
+- Highlight key strengths and risks
+- Provide actionable insights for traders
+- Suggest who might be interested in this coin (e.g. "good for long-term holders", "potential swing trade", etc.)
 - Use emojis
 - User proper post designing not just write everthing in a paragraph.
-- Add hashtags: #${c.symbol} #CryptoAnalysis #Binance 
+- Add hashtags: #${c.symbol} #CryptoAnalysis #Binance #SignalAlert
 
 Write ONLY the post.`;
 

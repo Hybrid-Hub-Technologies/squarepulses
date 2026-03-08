@@ -14,7 +14,7 @@ async function loadForexTab() {
   container.innerHTML = '<div class="loading-overlay"><span class="spinner"></span> Loading economic calendar...</div>';
 
   try {
-    const res  = await fetch(`/api/proxy.php?type=forex`);
+    const res  = await fetch(`/api/proxy?type=forex`);
     const data = await res.json();
 
     if (!data.success || !data.data?.length) throw new Error('No events available');

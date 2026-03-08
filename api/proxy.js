@@ -97,11 +97,15 @@ export default async function handler(req, res) {
           .map((e, i) => {
             const cur = e.currency || 'USD';
             const ci  = getCryptoImpact(e.title);
-            let timeStr = '—';
-            try { timeStr = new Date(e.date).toLocaleTimeString('en-US',{ hour:'2-digit', minute:'2-digit', timeZoneName:'short' }); } catch(_){}
+            let timeStr = '—'; let dateStr = '—';
+            try {
+              const d = new Date(e.date);
+              dateStr = d.toLocaleDateString('en-US',{ weekday:'short', month:'short', day:'numeric' });
+              timeStr = d.toLocaleTimeString('en-US',{ hour:'2-digit', minute:'2-digit', timeZoneName:'short' });
+            } catch(_){}
             return {
               id:i+1, event:e.title||'Unknown', country:COUNTRIES[cur]||cur,
-              flag:FLAGS[cur]||'🌍', time:timeStr,
+              flag:FLAGS[cur]||'🌍', date:dateStr, time:timeStr,
               impact:e.impact==='High'?'HIGH':'MEDIUM',
               forecast:e.forecast||'N/A', previous:e.previous||'N/A', actual:e.actual||null,
               cryptoImpact:ci.text, bullishForCrypto:ci.bullish,

@@ -14,7 +14,7 @@ async function loadForexTab() {
   container.innerHTML = '<div class="loading-overlay"><span class="spinner"></span> Loading economic calendar...</div>';
 
   try {
-    const res  = await fetch(`/api/proxy?type=forex`);
+    const res  = await fetch('/api/proxy?type=forex');
     const data = await res.json();
 
     if (!data.success || !data.data?.length) throw new Error('No events available');
@@ -44,7 +44,7 @@ function renderForexList(items) {
       <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:8px">
         <div>
           <h3 style="margin:0;font-size:0.9rem">${item.flag} ${item.event}</h3>
-          <p style="margin:4px 0;color:var(--muted);font-size:0.8rem">${item.country} • ${item.time}</p>
+          <p style="margin:4px 0;color:var(--muted);font-size:0.8rem">${item.country} • <span style="color:rgba(255,255,255,0.5)">${item.date}</span> • ${item.time}</p>
         </div>
         <span style="padding:4px 8px;border-radius:4px;font-size:0.7rem;font-weight:bold;
           background:${item.impact==='HIGH' ? 'rgba(239,68,68,0.2)' : 'rgba(245,158,11,0.2)'};
@@ -72,7 +72,7 @@ function selectEvent(id) {
   preview.innerHTML = `
     <div style="margin-bottom:16px">
       <h3>${_selectedEvent.flag} ${_selectedEvent.event}</h3>
-      <p style="color:var(--muted);font-size:0.85rem;margin:8px 0">${_selectedEvent.country} • ${_selectedEvent.time}</p>
+      <p style="color:var(--muted);font-size:0.85rem;margin:8px 0">${_selectedEvent.country} • ${_selectedEvent.date} • ${_selectedEvent.time}</p>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:12px 0">
         <div style="padding:8px;background:rgba(255,255,255,0.05);border-radius:6px">
           <small style="color:var(--muted)">Impact</small><br>

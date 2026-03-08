@@ -14,9 +14,16 @@ async function loadForexTab() {
   container.innerHTML = '<div class="loading-overlay"><span class="spinner"></span> Loading economic calendar...</div>';
 
   try {
-    const res  = await fetch('/api/proxy?type=forex');
+    const groqKey = window.SP?.groqKey || '';
+    const params  = new URLSearchParams({ type: 'forex' });
+    if (groqKey) params.append('groqKey', groqKey);
+
+    const res  = await fetch(`/api/proxy?${params}`);
     const data = await res.json();
 
+    if (data.success && data.fallback && !data.data?.length) {
+      throw new Error('Forex Factory unreachable. Add Groq key in ⚙ API Keys for AI-generated events.');
+    }
     if (!data.success || !data.data?.length) throw new Error(data.message || 'No events available');
 
     _forexEvents = data.data;

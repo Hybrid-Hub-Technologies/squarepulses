@@ -68,28 +68,30 @@ export default async function handler(req, res) {
       const FLAGS     = { 'USD':'🇺🇸','EUR':'🇪🇺','GBP':'🇬🇧','JPY':'🇯🇵','AUD':'🇦🇺','CAD':'🇨🇦','CHF':'🇨🇭','NZD':'🇳🇿','CNY':'🇨🇳','CNH':'🇨🇳' };
       const COUNTRIES = { 'USD':'United States','EUR':'Eurozone','GBP':'United Kingdom','JPY':'Japan','AUD':'Australia','CAD':'Canada','CHF':'Switzerland','NZD':'New Zealand','CNY':'China','CNH':'China' };
       const IMAP = {
-        'CPI':       { text:'High CPI = Fed stays hawkish → bearish for crypto',       bullish:false },
-        'NON-FARM':  { text:'Strong jobs = Fed tightening risk → bearish crypto',       bullish:false },
-        'NFP':       { text:'Strong jobs = Fed tightening risk → bearish crypto',       bullish:false },
-        'FOMC':      { text:'Rate decision drives volatility → watch BTC reaction',     bullish:null  },
-        'FEDERAL':   { text:'Fed decision is key catalyst — watch for surprise cuts',   bullish:null  },
-        'INTEREST':  { text:'Rate decision is key catalyst — watch for surprise cuts',  bullish:null  },
-        'GDP':       { text:'Weak GDP = risk-off mood → short-term bearish crypto',     bullish:false },
-        'PPI':       { text:'High PPI signals inflation → Fed pressure → bearish',      bullish:false },
-        'PCE':       { text:'Core PCE drives Fed policy → high = bearish crypto',       bullish:false },
-        'UNEMPLOYMENT':{ text:'Rising unemployment = dovish pivot → bullish crypto',    bullish:true  },
-        'JOBLESS':   { text:'High jobless claims = Fed may ease → bullish crypto',      bullish:true  },
-        'ISM':       { text:'ISM below 50 = contraction → risk-off → bearish crypto',  bullish:false },
-        'PMI':       { text:'PMI contraction signals slowdown → bearish sentiment',     bullish:false },
-        'RETAIL':    { text:'Retail sales reflect consumer strength → mixed for crypto',bullish:null  },
-        'INFLATION': { text:'Inflation data directly impacts Fed rate expectations',    bullish:false },
+        'CPI':         { text:'High CPI = Fed stays hawkish → bearish for crypto',       bullish:false },
+        'NON-FARM':    { text:'Strong jobs = Fed tightening risk → bearish crypto',       bullish:false },
+        'NFP':         { text:'Strong jobs = Fed tightening risk → bearish crypto',       bullish:false },
+        'FOMC':        { text:'Rate decision drives volatility → watch BTC reaction',     bullish:null  },
+        'FEDERAL':     { text:'Fed decision is key catalyst — watch for surprise cuts',   bullish:null  },
+        'INTEREST':    { text:'Rate decision is key catalyst — watch for surprise cuts',  bullish:null  },
+        'GDP':         { text:'Weak GDP = risk-off mood → short-term bearish crypto',     bullish:false },
+        'PPI':         { text:'High PPI signals inflation → Fed pressure → bearish',      bullish:false },
+        'PCE':         { text:'Core PCE drives Fed policy → high = bearish crypto',       bullish:false },
+        'UNEMPLOYMENT':{ text:'Rising unemployment = dovish pivot → bullish crypto',      bullish:true  },
+        'JOBLESS':     { text:'High jobless claims = Fed may ease → bullish crypto',      bullish:true  },
+        'ISM':         { text:'ISM below 50 = contraction → risk-off → bearish crypto',  bullish:false },
+        'PMI':         { text:'PMI contraction signals slowdown → bearish sentiment',     bullish:false },
+        'RETAIL':      { text:'Retail sales reflect consumer strength → mixed crypto',    bullish:null  },
+        'INFLATION':   { text:'Inflation data directly impacts Fed rate expectations',    bullish:false },
       };
+
       function getCryptoImpact(title) {
         const u = (title||'').toUpperCase();
         for (const [k,v] of Object.entries(IMAP)) { if (u.includes(k)) return v; }
         return { text:'Macro event may impact risk assets including crypto', bullish:null };
       }
-      function formatEvent(e, i) {
+
+      function formatFFEvent(e, i) {
         const cur       = e.currency || 'USD';
         const ci        = getCryptoImpact(e.title);
         const eventDate = new Date(e.date);
@@ -105,28 +107,109 @@ export default async function handler(req, res) {
           forecast: e.forecast||'N/A', previous: e.previous||'N/A',
           actual: hasActual ? e.actual : null, isPast: hasActual,
           cryptoImpact: ci.text, bullishForCrypto: ci.bullish,
+          source: 'ForexFactory'
         };
       }
+
+      // Try Forex Factory first, fall back to Groq-generated events
+      let events = [];
+      let usedFallback = false;
+
       try {
         const [r1, r2] = await Promise.allSettled([
-          fetch('https://nfs.faireconomy.media/ff_calendar_thisweek.json',  { headers:{ 'User-Agent':'Mozilla/5.0 (compatible)' } }).then(r => r.ok ? r.json() : []),
-          fetch('https://nfs.faireconomy.media/ff_calendar_nextweek.json',  { headers:{ 'User-Agent':'Mozilla/5.0 (compatible)' } }).then(r => r.ok ? r.json() : []),
+          fetch('https://nfs.faireconomy.media/ff_calendar_thisweek.json',
+            { headers:{ 'User-Agent':'Mozilla/5.0 (compatible; Vercel/1.0)' }, signal: AbortSignal.timeout(5000) })
+            .then(r => r.ok ? r.json() : Promise.reject('not ok')),
+          fetch('https://nfs.faireconomy.media/ff_calendar_nextweek.json',
+            { headers:{ 'User-Agent':'Mozilla/5.0 (compatible; Vercel/1.0)' }, signal: AbortSignal.timeout(5000) })
+            .then(r => r.ok ? r.json() : Promise.reject('not ok')),
         ]);
+
         let raw = [];
         if (r1.status==='fulfilled' && Array.isArray(r1.value)) raw = raw.concat(r1.value);
         if (r2.status==='fulfilled' && Array.isArray(r2.value)) raw = raw.concat(r2.value);
-        if (!raw.length) throw new Error('Forex Factory unreachable');
-        const now = Date.now();
-        const events = raw
-          .filter(e => e.impact==='High' || e.impact==='Medium')
-          .sort((a,b) => new Date(a.date)-new Date(b.date))
-          .filter(e => new Date(e.date).getTime() >= now - 7200000)
-          .slice(0, 20)
-          .map((e,i) => formatEvent(e,i));
-        return res.status(200).json({ success:true, data:events, serverTime:new Date().toISOString() });
-      } catch(e) {
-        return res.status(500).json({ success:false, message:e.message });
+
+        if (raw.length > 0) {
+          const now = Date.now();
+          events = raw
+            .filter(e => e.impact==='High' || e.impact==='Medium')
+            .sort((a,b) => new Date(a.date)-new Date(b.date))
+            .filter(e => new Date(e.date).getTime() >= now - 7200000)
+            .slice(0, 20)
+            .map((e,i) => formatFFEvent(e,i));
+        }
+      } catch(_) {}
+
+      // ── Groq fallback if FF failed ─────────────────────
+      if (events.length === 0) {
+        usedFallback = true;
+        const groqKey = req.query.groqKey || '';
+        if (!groqKey) {
+          return res.status(200).json({
+            success: true,
+            data: [],
+            fallback: true,
+            message: 'Forex Factory unreachable. Provide groqKey param for AI-generated events.'
+          });
+        }
+
+        const now     = new Date();
+        const today   = now.toISOString().split('T')[0];
+        const weekEnd = new Date(now.getTime() + 7*86400000).toISOString().split('T')[0];
+
+        const groqRes = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+          method:'POST',
+          headers:{ 'Content-Type':'application/json', 'Authorization':`Bearer ${groqKey}` },
+          body: JSON.stringify({
+            model: 'llama-3.3-70b-versatile',
+            temperature: 0.3,
+            max_tokens: 2000,
+            messages:[
+              { role:'system', content:'You are a financial data API. Return only valid JSON, no markdown, no explanation.' },
+              { role:'user', content:`Today is ${today}. List the real high-impact economic events scheduled between ${today} and ${weekEnd}.
+Use ONLY officially scheduled recurring events (CPI, NFP, FOMC, GDP, PPI, PMI, Retail Sales, Jobless Claims etc).
+Return a JSON array of up to 12 objects with these exact fields:
+- id: number
+- event: string (official event name)
+- country: string
+- flag: string (emoji)
+- date: string (format: "Mon, Mar 10, 2025")
+- time: string (format: "08:30 AM EST")
+- isoDate: string (ISO 8601 format, EST timezone)
+- impact: "HIGH" or "MEDIUM"
+- forecast: string (expected value or "N/A")
+- previous: string (last released value)
+- actual: null
+- isPast: false
+- cryptoImpact: string (one sentence on crypto effect)
+- bullishForCrypto: boolean or null
+- source: "AI-Estimated"
+
+Return ONLY the JSON array.` }
+            ]
+          })
+        });
+
+        if (groqRes.ok) {
+          const groqData = await groqRes.json();
+          const raw = groqData?.choices?.[0]?.message?.content?.trim() || '';
+          try {
+            const cleaned = raw.replace(/```json|```/g,'').trim();
+            events = JSON.parse(cleaned);
+          } catch(_) { events = []; }
+        }
       }
+
+      if (!events || !events.length) {
+        return res.status(500).json({ success:false, message:'No forex data available. Forex Factory unreachable and no Groq key provided.' });
+      }
+
+      return res.status(200).json({
+        success: true,
+        data: events,
+        serverTime: new Date().toISOString(),
+        source: usedFallback ? 'groq-fallback' : 'forex-factory'
+      });
     }
 
     // ── WHALES ────────────────────────────────────────────

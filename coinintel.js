@@ -450,7 +450,8 @@ Write an engaging post (400-500 chars):
 - Highlight key strengths and risks
 - Provide actionable insights for traders
 - Suggest who might be interested in this coin (e.g. "good for long-term holders", "potential swing trade", etc.)
-- Mention key numbers
+- Mention key numbers with a bit of flair (e.g. "surging with a 75 momentum score", "facing resistance after dropping 30% from ATH", etc.)
+- Mention entry/exit points if relevant (e.g. "watch for a bounce at $X", "could see a breakout above $Y", etc.)
 - Use emojis
 - Add hashtags: #${c.symbol} #CryptoAnalysis #Binance
 

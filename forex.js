@@ -48,12 +48,21 @@ function renderForexList(items) {
   const container = document.getElementById('forex-feed');
   if (!container) return;
 
-  const now       = Date.now();
-  const todayStr  = new Date().toLocaleDateString('en-US',{ weekday:'short', month:'short', day:'numeric', year:'numeric', timeZone:'America/New_York' });
+  const now      = Date.now();
+  const todayStart = new Date(); todayStart.setHours(0,0,0,0);
+  const todayEnd   = new Date(); todayEnd.setHours(23,59,59,999);
 
-  // Separate today vs upcoming
-  const todayEvents    = items.filter(e => e.date === todayStr);
-  const upcomingEvents = items.filter(e => e.date !== todayStr);
+  // Compare using isoDate (reliable) not string matching
+  const todayEvents    = items.filter(e => {
+    const t = new Date(e.isoDate).getTime();
+    return t >= todayStart.getTime() && t <= todayEnd.getTime();
+  });
+  const upcomingEvents = items.filter(e => {
+    const t = new Date(e.isoDate).getTime();
+    return t > todayEnd.getTime();
+  });
+  // Show todayStr for header from first today event or fallback
+  const todayStr = todayEvents[0]?.date || new Date().toLocaleDateString('en-US',{ weekday:'short', month:'short', day:'numeric', year:'numeric' });
 
   let html = '';
 
@@ -281,7 +290,7 @@ Forecast: ${e.forecast} | Previous: ${e.previous}${e.actual ? ` | Actual: ${e.ac
 Crypto Sentiment: ${sentiment}
 Analysis: ${e.cryptoImpact}
 
-Rules: 200-5000 chars, emojis, 2-3 hashtags (#Bitcoin #Macro #Crypto), direct and insightful.
+Rules: 150-250 chars, emojis, 2-3 hashtags (#Bitcoin #Macro #Crypto), direct and insightful.
 Write ONLY the post.`;
 
     const post = await callClaude('You are a professional crypto market analyst specializing in macro economics.', prompt, false);

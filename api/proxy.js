@@ -65,8 +65,24 @@ export default async function handler(req, res) {
 
     // ── FOREX ─────────────────────────────────────────────
     if (type === 'forex') {
-      const FLAGS     = { 'USD':'🇺🇸','EUR':'🇪🇺','GBP':'🇬🇧','JPY':'🇯🇵','AUD':'🇦🇺','CAD':'🇨🇦','CHF':'🇨🇭','NZD':'🇳🇿','CNY':'🇨🇳','CNH':'🇨🇳' };
-      const COUNTRIES = { 'USD':'United States','EUR':'Eurozone','GBP':'United Kingdom','JPY':'Japan','AUD':'Australia','CAD':'Canada','CHF':'Switzerland','NZD':'New Zealand','CNY':'China','CNH':'China' };
+      const FLAGS = {
+        'USD':'🇺🇸','EUR':'🇪🇺','GBP':'🇬🇧','JPY':'🇯🇵',
+        'AUD':'🇦🇺','CAD':'🇨🇦','CHF':'🇨🇭','NZD':'🇳🇿',
+        'CNY':'🇨🇳','CNH':'🇨🇳','HKD':'🇭🇰','SGD':'🇸🇬',
+        'KRW':'🇰🇷','INR':'🇮🇳','BRL':'🇧🇷','MXN':'🇲🇽',
+        'SEK':'🇸🇪','NOK':'🇳🇴','DKK':'🇩🇰','ZAR':'🇿🇦',
+        'TRY':'🇹🇷','RUB':'🇷🇺','PLN':'🇵🇱',
+      };
+      const COUNTRIES = {
+        'USD':'United States','EUR':'Eurozone','GBP':'United Kingdom',
+        'JPY':'Japan','AUD':'Australia','CAD':'Canada',
+        'CHF':'Switzerland','NZD':'New Zealand',
+        'CNY':'China','CNH':'China (Offshore)','HKD':'Hong Kong',
+        'SGD':'Singapore','KRW':'South Korea','INR':'India',
+        'BRL':'Brazil','MXN':'Mexico','SEK':'Sweden',
+        'NOK':'Norway','DKK':'Denmark','ZAR':'South Africa',
+        'TRY':'Turkey','RUB':'Russia','PLN':'Poland',
+      };
       const IMAP = {
         'CPI':         { text:'High CPI = Fed stays hawkish → bearish for crypto',       bullish:false },
         'NON-FARM':    { text:'Strong jobs = Fed tightening risk → bearish crypto',       bullish:false },
@@ -92,22 +108,35 @@ export default async function handler(req, res) {
       }
 
       function formatFFEvent(e, i) {
-        const cur       = e.currency || 'USD';
+        // Use currency code to determine country — NOT title
+        const cur       = (e.currency || 'USD').toUpperCase().trim();
         const ci        = getCryptoImpact(e.title);
         const eventDate = new Date(e.date);
         const dateStr   = eventDate.toLocaleDateString('en-US',{ weekday:'short', month:'short', day:'numeric', year:'numeric', timeZone:'America/New_York' });
         const timeStr   = eventDate.toLocaleTimeString('en-US',{ hour:'2-digit', minute:'2-digit', timeZoneName:'short', timeZone:'America/New_York' });
         const hasActual = e.actual !== undefined && e.actual !== null && e.actual !== '';
+
+        // Country and flag strictly from currency code
+        const flag    = FLAGS[cur]    || '🌍';
+        const country = COUNTRIES[cur] || cur;
+
         return {
-          id: i+1, event: e.title||'Unknown Event',
-          country: COUNTRIES[cur]||cur, flag: FLAGS[cur]||'🌍',
-          date: dateStr, time: timeStr,
+          id: i+1,
+          event:   e.title || 'Unknown Event',
+          currency: cur,          // keep original for debugging
+          country,
+          flag,
+          date:    dateStr,
+          time:    timeStr,
           isoDate: eventDate.toISOString(),
-          impact: e.impact==='High'?'HIGH':'MEDIUM',
-          forecast: e.forecast||'N/A', previous: e.previous||'N/A',
-          actual: hasActual ? e.actual : null, isPast: hasActual,
-          cryptoImpact: ci.text, bullishForCrypto: ci.bullish,
-          source: 'ForexFactory'
+          impact:  e.impact === 'High' ? 'HIGH' : 'MEDIUM',
+          forecast: e.forecast || 'N/A',
+          previous: e.previous || 'N/A',
+          actual:   hasActual ? e.actual : null,
+          isPast:   hasActual,
+          cryptoImpact:     ci.text,
+          bullishForCrypto: ci.bullish,
+          source: 'ForexFactory',
         };
       }
 
@@ -172,7 +201,7 @@ Return a JSON array of up to 12 objects with these exact fields:
 - id: number
 - event: string (official event name)
 - country: string
-- flag: string (emoji)
+- flag: string (correct emoji flag for that country's currency, e.g. CNY=🇨🇳, USD=🇺🇸, EUR=🇪🇺, GBP=🇬🇧, JPY=🇯🇵, AUD=🇦🇺, CAD=🇨🇦)
 - date: string (format: "Mon, Mar 10, 2025")
 - time: string (format: "08:30 AM EST")
 - isoDate: string (ISO 8601 format, EST timezone)

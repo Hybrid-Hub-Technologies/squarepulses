@@ -281,7 +281,7 @@ Forecast: ${e.forecast} | Previous: ${e.previous}${e.actual ? ` | Actual: ${e.ac
 Crypto Sentiment: ${sentiment}
 Analysis: ${e.cryptoImpact}
 
-Rules: 150-250 chars, emojis, 2-3 hashtags (#Bitcoin #Macro #Crypto), direct and insightful.
+Rules: 200-5000 chars, emojis, 2-3 hashtags (#Bitcoin #Macro #Crypto), direct and insightful.
 Write ONLY the post.`;
 
     const post = await callClaude('You are a professional crypto market analyst specializing in macro economics.', prompt, false);

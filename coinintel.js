@@ -453,6 +453,8 @@ Write an engaging post (400-500 chars):
 - Mention key numbers with a bit of flair (e.g. "surging with a 75 momentum score", "facing resistance after dropping 30% from ATH", etc.)
 - Mention entry/exit points if relevant (e.g. "watch for a bounce at $X", "could see a breakout above $Y", etc.)
 - Try to give a Buying and selling price if someone buy it where they can sell it for a profit.
+- Give 2 to 3 TP (take profit) levels if someone buy it and 1 or 2 SL (stop loss) levels if someone buy it.
+- TP1: $X (conservative target), TP2: $Y (aggressive target)
 - Use emojis
 - User proper post designing not just write everthing in a paragraph.
 - Add hashtags: #${c.symbol} #CryptoAnalysis #Binance 

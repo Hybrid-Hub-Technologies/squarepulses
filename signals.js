@@ -893,7 +893,7 @@ ${isPump ? '🔥 Strong bullish momentum detected!' : '⚠️ Selling pressure i
 
 async function autoPost(content, symbol) {
   try {
-    const res  = await fetch('/api/proxy', {
+    const res  = await fetch('/api/proxy.php', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ apiKey: SP.apiKey, content })

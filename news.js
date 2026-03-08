@@ -13,7 +13,7 @@ async function loadNewsTab() {
   container.innerHTML = '<div class="loading-overlay"><span class="spinner"></span> Fetching latest crypto news...</div>';
 
   try {
-    const res  = await fetch('/api/proxy?type=news');
+    const res  = await fetch(`/api/proxy.php?type=news`);
     const data = await res.json();
 
     if (!data.success || !data.data?.length) throw new Error('No news available');

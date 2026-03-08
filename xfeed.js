@@ -18,7 +18,7 @@ async function loadXfeedTab() {
     const params = new URLSearchParams({ type: 'xfeed' });
     if (cpKey) params.append('cpKey', cpKey);
 
-    const res  = await fetch(`/api/proxy?${params}`);
+    const res  = await fetch(`/api/proxy.php?${params}`);
     const data = await res.json();
 
     if (!data.success || !data.data?.length) throw new Error(data.message || 'No posts available');

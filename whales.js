@@ -21,7 +21,7 @@ async function loadWhalesTab() {
     if (waKey)  params.append('waKey',  waKey);
     if (ethKey) params.append('ethKey', ethKey);
 
-    const res  = await fetch(`/api/proxy?${params}`);
+    const res  = await fetch(`/api/proxy.php?${params}`);
     const data = await res.json();
 
     if (!data.success || !data.data?.length) throw new Error(data.message || 'No whale data');

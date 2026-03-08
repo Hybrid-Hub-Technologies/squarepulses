@@ -1,0 +1,1733 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Square Pulse — Binance Square Auto-Poster</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0a0f;
+    --surface: #111118;
+    --card: #16161f;
+    --border: #1e1e2e;
+    --accent: #f0b90b;
+    --accent2: #ff4d4d;
+    --green: #00d084;
+    --red: #ff4d4d;
+    --text: #e8e8f0;
+    --muted: #6b6b80;
+    --glow: rgba(240,185,11,0.15);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Syne', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    top: -200px; left: -200px;
+    width: 600px; height: 600px;
+    background: radial-gradient(circle, rgba(240,185,11,0.04) 0%, transparent 70%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* HEADER */
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 20px 32px;
+    border-bottom: 1px solid var(--border);
+    background: rgba(10,10,15,0.95);
+    backdrop-filter: blur(20px);
+    position: sticky; top: 0; z-index: 100;
+  }
+
+  .logo {
+    display: flex; align-items: center; gap: 12px;
+  }
+  .logo-icon {
+    width: 36px; height: 36px;
+    background: var(--accent);
+    clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+    display: flex; align-items: center; justify-content: center;
+    animation: pulse-hex 2s ease-in-out infinite;
+  }
+  @keyframes pulse-hex {
+    0%,100% { box-shadow: 0 0 0 0 rgba(240,185,11,0.4); }
+    50% { box-shadow: 0 0 20px 8px rgba(240,185,11,0.15); }
+  }
+  .logo h1 { font-size: 1.3rem; font-weight: 800; letter-spacing: -0.02em; }
+  .logo span { color: var(--accent); }
+
+  .header-right { display: flex; align-items: center; gap: 16px; }
+
+  .monitor-badge {
+    display: flex; align-items: center; gap: 8px;
+    background: var(--card); border: 1px solid var(--border);
+    padding: 8px 14px; border-radius: 20px;
+    font-family: 'Space Mono', monospace; font-size: 0.72rem;
+    color: var(--muted);
+  }
+  .monitor-badge .dot {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: var(--muted);
+    transition: all 0.3s;
+  }
+  .monitor-badge.active .dot {
+    background: var(--green);
+    box-shadow: 0 0 8px var(--green);
+    animation: blink 1.2s ease-in-out infinite;
+  }
+  .monitor-badge.active { color: var(--text); border-color: rgba(0,208,132,0.3); }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+  .api-key-btn {
+    background: var(--card); border: 1px solid var(--border);
+    color: var(--muted); padding: 8px 14px; border-radius: 8px;
+    cursor: pointer; font-family: 'Syne', sans-serif; font-size: 0.8rem;
+    transition: all 0.2s;
+  }
+  .api-key-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .api-key-btn.configured { border-color: rgba(0,208,132,0.4); color: var(--green); }
+
+  /* MAIN LAYOUT */
+  .layout {
+    display: grid;
+    grid-template-columns: 1fr 420px;
+    gap: 24px;
+    padding: 28px 32px;
+    max-width: 1400px; margin: 0 auto;
+    position: relative; z-index: 1;
+  }
+
+  /* SECTION LABELS */
+  .section-label {
+    font-size: 0.7rem; font-weight: 700; letter-spacing: 0.12em;
+    text-transform: uppercase; color: var(--muted);
+    margin-bottom: 14px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .section-label::after {
+    content: ''; flex: 1; height: 1px; background: var(--border);
+  }
+
+  /* CARDS */
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    transition: border-color 0.3s;
+  }
+  .card:hover { border-color: rgba(240,185,11,0.2); }
+
+  /* SEARCH */
+  .search-wrap {
+    display: flex; gap: 10px; margin-bottom: 20px;
+  }
+  .search-input {
+    flex: 1; background: var(--surface); border: 1px solid var(--border);
+    color: var(--text); padding: 12px 16px; border-radius: 8px;
+    font-family: 'Syne', sans-serif; font-size: 0.9rem;
+    outline: none; transition: all 0.2s;
+  }
+  .search-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--glow); }
+  .search-input::placeholder { color: var(--muted); }
+
+  .btn {
+    padding: 12px 20px; border-radius: 8px; border: none;
+    cursor: pointer; font-family: 'Syne', sans-serif; font-weight: 700;
+    font-size: 0.85rem; transition: all 0.2s; white-space: nowrap;
+  }
+  .btn-primary {
+    background: var(--accent); color: #000;
+  }
+  .btn-primary:hover { background: #ffd04a; transform: translateY(-1px); }
+  .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+  .btn-ghost {
+    background: transparent; border: 1px solid var(--border);
+    color: var(--muted);
+  }
+  .btn-ghost:hover { border-color: var(--accent); color: var(--accent); }
+
+  .btn-green { background: var(--green); color: #000; }
+  .btn-green:hover { background: #00f09a; transform: translateY(-1px); }
+  .btn-green:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+  /* TOKEN RESULTS */
+  .token-list { display: flex; flex-direction: column; gap: 10px; }
+
+  .token-item {
+    display: grid;
+    grid-template-columns: 44px 1fr auto;
+    align-items: center;
+    gap: 14px;
+    padding: 14px 16px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .token-item:hover { border-color: var(--accent); background: rgba(240,185,11,0.04); }
+  .token-item.selected { border-color: var(--accent); background: rgba(240,185,11,0.07); }
+
+  .token-icon {
+    width: 44px; height: 44px; border-radius: 50%;
+    background: linear-gradient(135deg, #1a1a2e, #16213e);
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 800; font-size: 0.8rem; color: var(--accent);
+    border: 1px solid var(--border); overflow: hidden;
+    flex-shrink: 0;
+  }
+  .token-icon img { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; }
+
+  .token-info h3 { font-size: 0.95rem; font-weight: 700; }
+  .token-info p { font-size: 0.75rem; color: var(--muted); font-family: 'Space Mono', monospace; margin-top: 2px; }
+
+  .token-price { text-align: right; }
+  .token-price .price { font-family: 'Space Mono', monospace; font-size: 0.85rem; font-weight: 700; }
+  .token-price .change {
+    font-family: 'Space Mono', monospace; font-size: 0.75rem;
+    margin-top: 3px; padding: 2px 7px; border-radius: 4px;
+    display: inline-block;
+  }
+  .change.up { color: var(--green); background: rgba(0,208,132,0.1); }
+  .change.down { color: var(--red); background: rgba(255,77,77,0.1); }
+
+  /* TOKEN DETAIL */
+  .detail-grid {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
+    margin-top: 16px;
+  }
+  .stat-box {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 8px; padding: 12px 14px;
+  }
+  .stat-box label { font-size: 0.68rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; }
+  .stat-box .val { font-family: 'Space Mono', monospace; font-size: 0.88rem; font-weight: 700; margin-top: 4px; }
+  .stat-box .val.green { color: var(--green); }
+  .stat-box .val.red { color: var(--red); }
+  .stat-box .val.gold { color: var(--accent); }
+
+  /* RIGHT PANEL */
+  .right-panel { display: flex; flex-direction: column; gap: 20px; }
+
+  /* POST COMPOSER */
+  .composer textarea {
+    width: 100%; background: var(--surface); border: 1px solid var(--border);
+    color: var(--text); padding: 14px 16px; border-radius: 8px;
+    font-family: 'Syne', sans-serif; font-size: 0.88rem;
+    outline: none; resize: vertical; min-height: 160px;
+    line-height: 1.6; transition: all 0.2s;
+  }
+  .composer textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--glow); }
+  .composer textarea::placeholder { color: var(--muted); }
+
+  .composer-actions {
+    display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap;
+  }
+
+  .char-count {
+    font-family: 'Space Mono', monospace; font-size: 0.72rem;
+    color: var(--muted); margin-top: 8px; text-align: right;
+  }
+
+  /* MONITOR PANEL */
+  .monitor-config {
+    display: flex; flex-direction: column; gap: 12px;
+  }
+
+  .config-row {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 0; border-bottom: 1px solid var(--border);
+  }
+  .config-row:last-child { border-bottom: none; }
+  .config-row label { font-size: 0.85rem; color: var(--text); }
+  .config-row span { font-size: 0.75rem; color: var(--muted); display: block; margin-top: 2px; }
+
+  .toggle {
+    width: 44px; height: 24px; background: var(--border);
+    border-radius: 12px; cursor: pointer; position: relative;
+    transition: all 0.3s; border: none; flex-shrink: 0;
+  }
+  .toggle::after {
+    content: ''; position: absolute;
+    width: 18px; height: 18px; background: var(--muted);
+    border-radius: 50%; top: 3px; left: 3px; transition: all 0.3s;
+  }
+  .toggle.on { background: rgba(0,208,132,0.25); }
+  .toggle.on::after { background: var(--green); transform: translateX(20px); }
+
+  .threshold-input {
+    background: var(--surface); border: 1px solid var(--border);
+    color: var(--text); padding: 6px 10px; border-radius: 6px;
+    font-family: 'Space Mono', monospace; font-size: 0.85rem;
+    width: 70px; text-align: center; outline: none;
+  }
+  .threshold-input:focus { border-color: var(--accent); }
+
+  /* ALERTS LOG */
+  .alerts-log {
+    max-height: 220px; overflow-y: auto;
+    display: flex; flex-direction: column; gap: 8px;
+    padding-right: 4px;
+  }
+  .alerts-log::-webkit-scrollbar { width: 4px; }
+  .alerts-log::-webkit-scrollbar-track { background: var(--surface); border-radius: 2px; }
+  .alerts-log::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+  .alert-item {
+    padding: 10px 14px;
+    background: var(--surface); border-radius: 8px;
+    border-left: 3px solid transparent;
+    animation: slideIn 0.3s ease;
+  }
+  .alert-item.pump { border-left-color: var(--green); }
+  .alert-item.dump { border-left-color: var(--red); }
+  .alert-item.posted { border-left-color: var(--accent); }
+  .alert-item .alert-title { font-size: 0.82rem; font-weight: 700; }
+  .alert-item .alert-time { font-family: 'Space Mono', monospace; font-size: 0.68rem; color: var(--muted); margin-top: 3px; }
+  .alert-item .alert-meta { font-size: 0.75rem; color: var(--muted); margin-top: 2px; }
+
+  @keyframes slideIn {
+    from { opacity:0; transform: translateX(-10px); }
+    to { opacity:1; transform: translateX(0); }
+  }
+
+  /* CHAIN BADGES */
+  .chain-badge {
+    font-family: 'Space Mono', monospace; font-size: 0.65rem;
+    padding: 2px 7px; border-radius: 4px; border: 1px solid;
+    display: inline-block;
+  }
+  .chain-bsc { color: #f0b90b; border-color: rgba(240,185,11,0.3); background: rgba(240,185,11,0.07); }
+  .chain-base { color: #0052ff; border-color: rgba(0,82,255,0.3); background: rgba(0,82,255,0.07); }
+  .chain-sol { color: #9945ff; border-color: rgba(153,69,255,0.3); background: rgba(153,69,255,0.07); }
+
+  /* MODAL */
+  .modal-overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.8);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 999; backdrop-filter: blur(4px);
+    opacity: 0; pointer-events: none; transition: opacity 0.3s;
+  }
+  .modal-overlay.open { opacity: 1; pointer-events: all; }
+  .modal {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 16px; padding: 28px; width: 420px; max-width: 95vw;
+    transform: translateY(20px); transition: transform 0.3s;
+  }
+  .modal-overlay.open .modal { transform: translateY(0); }
+  .modal h2 { font-size: 1.1rem; font-weight: 800; margin-bottom: 6px; }
+  .modal p { font-size: 0.82rem; color: var(--muted); margin-bottom: 18px; line-height: 1.5; }
+  .modal input {
+    width: 100%; background: var(--surface); border: 1px solid var(--border);
+    color: var(--text); padding: 12px 16px; border-radius: 8px;
+    font-family: 'Space Mono', monospace; font-size: 0.85rem;
+    outline: none; margin-bottom: 14px; transition: all 0.2s;
+  }
+  .modal input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--glow); }
+  .modal-actions { display: flex; gap: 10px; justify-content: flex-end; }
+
+  /* STATUS TOAST */
+  .toast {
+    position: fixed; bottom: 28px; right: 28px;
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 10px; padding: 14px 20px;
+    font-size: 0.85rem; z-index: 9999;
+    transform: translateY(80px); opacity: 0;
+    transition: all 0.3s; max-width: 320px;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .toast.show { transform: translateY(0); opacity: 1; }
+  .toast.success { border-color: rgba(0,208,132,0.4); }
+  .toast.error { border-color: rgba(255,77,77,0.4); }
+  .toast.info { border-color: rgba(240,185,11,0.4); }
+  .toast-icon { font-size: 1.1rem; }
+
+  /* LOADING */
+  .spinner {
+    width: 18px; height: 18px; border: 2px solid var(--border);
+    border-top-color: var(--accent); border-radius: 50%;
+    animation: spin 0.7s linear infinite; display: inline-block;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .loading-overlay {
+    display: flex; align-items: center; justify-content: center;
+    gap: 10px; padding: 30px; color: var(--muted); font-size: 0.85rem;
+  }
+
+  /* EMPTY STATE */
+  .empty-state {
+    text-align: center; padding: 40px 20px; color: var(--muted);
+  }
+  .empty-state .icon { font-size: 2.5rem; margin-bottom: 12px; opacity: 0.4; }
+  .empty-state p { font-size: 0.85rem; line-height: 1.6; }
+
+  /* MONITOR WATCHLIST */
+  .watchlist-item {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 14px; background: var(--surface); border-radius: 8px;
+    border: 1px solid var(--border); margin-bottom: 8px;
+  }
+  .watchlist-item .wl-info { display: flex; align-items: center; gap: 10px; }
+  .watchlist-item .wl-name { font-size: 0.88rem; font-weight: 700; }
+  .watchlist-item .wl-change { font-family: 'Space Mono', monospace; font-size: 0.78rem; }
+  .remove-btn {
+    background: none; border: none; color: var(--muted); cursor: pointer;
+    font-size: 1rem; padding: 2px 6px; border-radius: 4px;
+    transition: color 0.2s;
+  }
+  .remove-btn:hover { color: var(--red); }
+
+  /* TABS */
+  .tabs {
+    display: flex; gap: 4px; background: var(--surface);
+    padding: 4px; border-radius: 10px; margin-bottom: 18px;
+  }
+  .tab-btn {
+    flex: 1; padding: 9px; border: none; background: transparent;
+    color: var(--muted); cursor: pointer; border-radius: 7px;
+    font-family: 'Syne', sans-serif; font-size: 0.82rem; font-weight: 600;
+    transition: all 0.2s;
+  }
+  .tab-btn.active {
+    background: var(--card); color: var(--text);
+    box-shadow: 0 1px 4px rgba(0,0,0,0.4);
+  }
+  .tab-pane { display: none; }
+  .tab-pane.active { display: block; }
+
+  /* SELECTED TOKEN HEADER */
+  .token-header {
+    display: flex; align-items: center; gap: 14px; margin-bottom: 16px;
+    padding-bottom: 16px; border-bottom: 1px solid var(--border);
+  }
+  .token-header-icon {
+    width: 52px; height: 52px; border-radius: 50%;
+    background: linear-gradient(135deg, #1a1a2e, #16213e);
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 800; font-size: 1rem; color: var(--accent);
+    border: 2px solid var(--border); overflow: hidden; flex-shrink: 0;
+  }
+  .token-header-icon img { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; }
+  .token-header-info h2 { font-size: 1.1rem; font-weight: 800; }
+  .token-header-info .sub { font-size: 0.78rem; color: var(--muted); font-family: 'Space Mono', monospace; margin-top: 4px; }
+
+  /* GENERATE BTN GLOW */
+  .btn-generate {
+    background: linear-gradient(135deg, #1a1a2e, #0d0d1a);
+    border: 1px solid rgba(240,185,11,0.4);
+    color: var(--accent); font-family: 'Syne', sans-serif;
+    font-weight: 700; font-size: 0.82rem; padding: 10px 16px;
+    border-radius: 8px; cursor: pointer; transition: all 0.2s;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .btn-generate:hover {
+    border-color: var(--accent); background: rgba(240,185,11,0.08);
+    box-shadow: 0 0 20px rgba(240,185,11,0.15);
+  }
+
+  .interval-select {
+    background: var(--surface); border: 1px solid var(--border);
+    color: var(--text); padding: 6px 10px; border-radius: 6px;
+    font-family: 'Space Mono', monospace; font-size: 0.8rem; outline: none;
+  }
+  .interval-select:focus { border-color: var(--accent); }
+
+  @media (max-width: 900px) {
+    .layout { grid-template-columns: 1fr; }
+    header { padding: 16px 20px; }
+    .layout { padding: 20px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header>
+  <div class="logo">
+    <div class="logo-icon"></div>
+    <h1>Square<span>Pulse</span></h1>
+  </div>
+  <div class="header-right">
+    <div class="monitor-badge" id="monitorBadge">
+      <div class="dot"></div>
+      <span id="monitorStatus">Monitor Off</span>
+    </div>
+    <button class="api-key-btn" id="apiKeyBtn" onclick="openApiModal()">⚙ API Key</button>
+  </div>
+</header>
+
+<!-- MAIN -->
+<div class="layout">
+
+  <!-- LEFT: SEARCH + TOKEN DATA -->
+  <div class="left-col">
+    <div class="section-label">Token Search</div>
+    <div class="card" style="margin-bottom:20px">
+      <div class="search-wrap">
+        <input class="search-input" id="searchInput" placeholder="Search coin name, symbol or contract..." 
+               onkeydown="if(event.key==='Enter') searchTokens()">
+        <button class="btn btn-primary" id="searchBtn" onclick="searchTokens()">Search</button>
+      </div>
+      <div id="tokenResults">
+        <div class="empty-state">
+          <div class="icon">🔍</div>
+          <p>Search for any token to get<br>real-time market data</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- TOKEN DETAIL -->
+    <div id="tokenDetailSection" style="display:none">
+      <div class="section-label">Token Detail</div>
+      <div class="card">
+        <div class="token-header" id="tokenHeader"></div>
+        <div class="tabs">
+          <button class="tab-btn active" onclick="switchTab('market',this)">Market Data</button>
+          <button class="tab-btn" onclick="switchTab('holders',this)">Holders</button>
+          <button class="tab-btn" onclick="switchTab('about',this)">About</button>
+        </div>
+
+        <div class="tab-pane active" id="tab-market">
+          <div class="detail-grid" id="marketGrid"></div>
+        </div>
+        <div class="tab-pane" id="tab-holders">
+          <div class="detail-grid" id="holdersGrid"></div>
+        </div>
+        <div class="tab-pane" id="tab-about">
+          <div id="aboutContent"></div>
+        </div>
+
+        <div style="display:flex;gap:10px;margin-top:16px;flex-wrap:wrap">
+          <button class="btn-generate" onclick="generatePost()">
+            ✨ Generate Post
+          </button>
+          <button class="btn btn-ghost" onclick="addToWatchlist()" style="font-size:0.82rem;padding:10px 14px">
+            + Add to Monitor
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- RIGHT: COMPOSE + MONITOR -->
+  <div class="right-panel">
+
+    <!-- POST COMPOSER -->
+    <div class="section-label">Post Composer</div>
+    <div class="card composer">
+      <textarea id="postContent" placeholder="Select a token and click 'Generate Post', or write your own content here...
+
+Use #hashtags to categorize your post." oninput="updateCharCount()"></textarea>
+      <div class="char-count"><span id="charCount">0</span> characters</div>
+      <div class="composer-actions">
+        <button class="btn btn-green" onclick="postToSquare()" id="postBtn">🚀 Post to Square</button>
+        <button class="btn btn-ghost" onclick="clearComposer()" style="font-size:0.82rem">Clear</button>
+      </div>
+    </div>
+
+    <!-- MONITOR -->
+    <div class="section-label">Auto Monitor</div>
+    <div class="card">
+      <div class="monitor-config">
+        <div class="config-row">
+          <div>
+            <label>Pump Threshold</label>
+            <span>Alert when price rises by</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:6px">
+            <input class="threshold-input" id="pumpThreshold" type="number" value="5" min="1" max="100">
+            <span style="font-size:0.85rem;color:var(--muted)">%</span>
+          </div>
+        </div>
+        <div class="config-row">
+          <div>
+            <label>Check Interval</label>
+            <span>How often to fetch data</span>
+          </div>
+          <select class="interval-select" id="checkInterval">
+            <option value="30000">30s</option>
+            <option value="60000" selected>1 min</option>
+            <option value="300000">5 min</option>
+            <option value="600000">10 min</option>
+          </select>
+        </div>
+        <div class="config-row">
+          <div>
+            <label>Auto-Post Alert</label>
+            <span>Auto post when pump detected</span>
+          </div>
+          <button class="toggle" id="autoPostToggle" onclick="this.classList.toggle('on')"></button>
+        </div>
+        <div class="config-row">
+          <div>
+            <label>Sound Alert</label>
+            <span>Play sound on pump detection</span>
+          </div>
+          <button class="toggle on" id="soundToggle" onclick="this.classList.toggle('on')"></button>
+        </div>
+      </div>
+      <button class="btn btn-primary" id="monitorBtn" onclick="toggleMonitor()" style="width:100%;margin-top:16px">
+        ▶ Start Monitoring
+      </button>
+    </div>
+
+    <!-- WATCHLIST -->
+    <div class="section-label">Watchlist</div>
+    <div class="card">
+      <div id="watchlistContainer">
+        <div class="empty-state" style="padding:20px">
+          <div class="icon" style="font-size:1.5rem">👁</div>
+          <p style="font-size:0.8rem">No tokens in watchlist.<br>Search a token and click "Add to Monitor"</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ALERTS LOG -->
+    <div class="section-label">Alerts Log</div>
+    <div class="card">
+      <div class="alerts-log" id="alertsLog">
+        <div class="empty-state" style="padding:16px">
+          <p style="font-size:0.8rem">Alerts will appear here when<br>monitoring is active</p>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- API KEY MODAL -->
+<div class="modal-overlay" id="apiModal">
+  <div class="modal">
+    <h2>⚙ Configure API Key</h2>
+    <p>Enter your Binance Square OpenAPI Key to enable posting. Your key is stored locally in your browser only.</p>
+    <input type="password" id="apiKeyInput" placeholder="Your X-Square-OpenAPI-Key...">
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeApiModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveApiKey()">Save Key</button>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast">
+  <span class="toast-icon" id="toastIcon"></span>
+  <span id="toastMsg"></span>
+</div>
+
+<script>
+// ===================== STATE =====================
+let apiKey = localStorage.getItem('sq_api_key') || '';
+let selectedToken = null;
+let watchlist = JSON.parse(localStorage.getItem('sq_watchlist') || '[]');
+let monitorInterval = null;
+let isMonitoring = false;
+let tokenPriceCache = {};
+
+// ===================== INIT =====================
+document.addEventListener('DOMContentLoaded', () => {
+  updateApiKeyBtn();
+  renderWatchlist();
+});
+
+// ===================== API KEY =====================
+function openApiModal() {
+  document.getElementById('apiKeyInput').value = apiKey;
+  document.getElementById('apiModal').classList.add('open');
+}
+function closeApiModal() {
+  document.getElementById('apiModal').classList.remove('open');
+}
+function saveApiKey() {
+  const key = document.getElementById('apiKeyInput').value.trim();
+  if (!key) { showToast('error', '❌', 'Please enter an API key'); return; }
+  apiKey = key;
+  localStorage.setItem('sq_api_key', key);
+  updateApiKeyBtn();
+  closeApiModal();
+  showToast('success', '✅', 'API Key saved successfully');
+}
+function updateApiKeyBtn() {
+  const btn = document.getElementById('apiKeyBtn');
+  if (apiKey) {
+    const masked = apiKey.substring(0,5) + '...' + apiKey.slice(-4);
+    btn.textContent = '✓ ' + masked;
+    btn.classList.add('configured');
+  } else {
+    btn.textContent = '⚙ API Key';
+    btn.classList.remove('configured');
+  }
+}
+
+// ===================== SMART SEARCH =====================
+// Auto-detect: CoinGecko for major/CEX coins, Binance DEX for on-chain
+
+async function searchTokens() {
+  const kw = document.getElementById('searchInput').value.trim();
+  if (!kw) { showToast('info','🔍','Enter a search keyword'); return; }
+
+  const btn = document.getElementById('searchBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>';
+  document.getElementById('tokenResults').innerHTML =
+    '<div class="loading-overlay"><span class="spinner"></span> Smart searching...</div>';
+
+  try {
+    // Run CoinGecko + Binance DEX search in parallel
+    const [geckoRes, dexRes] = await Promise.allSettled([
+      searchCoinGecko(kw),
+      searchDEX(kw)
+    ]);
+
+    const geckoTokens = geckoRes.status === 'fulfilled' ? geckoRes.value : [];
+    const dexTokens   = dexRes.status   === 'fulfilled' ? dexRes.value   : [];
+
+    // Merge: CoinGecko first (higher priority), then DEX
+    const all = [...geckoTokens, ...dexTokens];
+
+    if (all.length > 0) {
+      renderTokenResults(all);
+    } else {
+      document.getElementById('tokenResults').innerHTML = `
+        <div class="empty-state"><div class="icon">😕</div>
+        <p>No results for "<strong>${kw}</strong>"</p></div>`;
+    }
+  } catch(e) {
+    document.getElementById('tokenResults').innerHTML = `
+      <div class="empty-state"><div class="icon">⚠</div>
+      <p>Search error: ${e.message}</p></div>`;
+  }
+
+  btn.disabled = false;
+  btn.textContent = 'Search';
+}
+
+// ── CoinGecko search (CEX / major coins) ─────────────────
+async function searchCoinGecko(kw) {
+  const res  = await fetch(`https://api.coingecko.com/api/v3/search?query=${encodeURIComponent(kw)}`);
+  const data = await res.json();
+  const coins = (data.coins || []).slice(0, 6);
+  if (!coins.length) return [];
+
+  // Fetch market data for found coins
+  const ids = coins.map(c => c.id).join(',');
+  const mktRes  = await fetch(`https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&ids=${ids}&order=market_cap_desc&sparkline=false&price_change_percentage=1h,24h`);
+  const mktData = await mktRes.json();
+
+  return mktData.map(c => ({
+    _source:          'coingecko',
+    _geckoId:         c.id,
+    name:             c.name,
+    symbol:           c.symbol.toUpperCase(),
+    icon:             c.image,
+    price:            c.current_price?.toString(),
+    percentChange24h: c.price_change_percentage_24h?.toFixed(2),
+    percentChange1h:  c.price_change_percentage_1h_in_currency?.toFixed(2),
+    volume24h:        c.total_volume?.toString(),
+    marketCap:        c.market_cap?.toString(),
+    priceHigh24h:     c.high_24h?.toString(),
+    priceLow24h:      c.low_24h?.toString(),
+    circulatingSupply:c.circulating_supply?.toString(),
+    totalSupply:      c.total_supply?.toString(),
+    chainId:          'CEX',
+    contractAddress:  null,
+    // For K-Line: use symbol
+    _binanceSymbol:   c.symbol.toUpperCase() + 'USDT',
+  }));
+}
+
+// ── Binance DEX search (on-chain tokens) ─────────────────
+async function searchDEX(kw) {
+  const url = `https://web3.binance.com/bapi/defi/v5/public/wallet-direct/buw/wallet/market/token/search?keyword=${encodeURIComponent(kw)}&chainIds=56,8453,CT_501&orderBy=volume24h`;
+  const res  = await fetch(url, { headers: { 'Accept-Encoding': 'identity' } });
+  const data = await res.json();
+  if (!data.success || !data.data?.length) return [];
+
+  return data.data.slice(0, 5).map(t => ({
+    ...t,
+    _source: 'dex',
+    icon: t.icon ? `https://bin.bnbstatic.com${t.icon}` : null,
+  }));
+}
+
+// ── Render merged results ─────────────────────────────────
+function renderTokenResults(tokens) {
+  const html = tokens.map(t => {
+    const change     = parseFloat(t.percentChange24h || 0);
+    const changeClass = change >= 0 ? 'up' : 'down';
+    const changeSign  = change >= 0 ? '+' : '';
+
+    const sourceBadge = t._source === 'coingecko'
+      ? `<span class="chain-badge" style="color:#8cc63f;border-color:rgba(140,198,63,0.3);background:rgba(140,198,63,0.07)">CoinGecko</span>`
+      : `<span class="chain-badge ${getChainLabel(t.chainId).cls}">${getChainLabel(t.chainId).name}</span>`;
+
+    const iconHtml = t.icon
+      ? `<img src="${t.icon}" onerror="this.parentElement.textContent='${(t.symbol||'').substring(0,2).toUpperCase()}'" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`
+      : (t.symbol||'?').substring(0,2).toUpperCase();
+
+    const safeT = JSON.stringify(t).replace(/"/g, '&quot;');
+    return `<div class="token-item" onclick='selectToken(${JSON.stringify(t).replace(/'/g,"&#39;").replace(/"/g,"&quot;")})'>
+      <div class="token-icon">${iconHtml}</div>
+      <div class="token-info">
+        <h3>${t.name} ${sourceBadge}</h3>
+        <p>${t.symbol} • Vol: $${formatNum(t.volume24h)}</p>
+      </div>
+      <div class="token-price">
+        <div class="price">$${formatPrice(t.price)}</div>
+        <div class="change ${changeClass}">${changeSign}${change.toFixed(2)}%</div>
+      </div>
+    </div>`;
+  }).join('');
+  document.getElementById('tokenResults').innerHTML = `<div class="token-list">${html}</div>`;
+}
+
+// ===================== TOKEN SELECTION =====================
+async function selectToken(tokenData) {
+  document.querySelectorAll('.token-item').forEach(el => el.classList.remove('selected'));
+  event?.currentTarget?.classList.add('selected');
+
+  selectedToken = tokenData;
+  document.getElementById('tokenDetailSection').style.display = 'block';
+
+  renderTokenHeader(tokenData);
+  renderMarketData(tokenData, null);
+
+  if (tokenData._source === 'coingecko') {
+    await selectCoinGeckoToken(tokenData);
+  } else {
+    await selectDEXToken(tokenData);
+  }
+
+  document.getElementById('tokenDetailSection').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+// ── Load full CoinGecko detail ────────────────────────────
+async function selectCoinGeckoToken(t) {
+  try {
+    const res  = await fetch(`https://api.coingecko.com/api/v3/coins/${t._geckoId}?localization=false&tickers=false&community_data=false&developer_data=false`);
+    const data = await res.json();
+
+    const mkt = data.market_data || {};
+    const dyn = {
+      price:               mkt.current_price?.usd?.toString(),
+      percentChange24h:    mkt.price_change_percentage_24h?.toFixed(2),
+      percentChange1h:     mkt.price_change_percentage_1h_in_currency?.usd?.toFixed(2),
+      percentChange7d:     mkt.price_change_percentage_7d?.toFixed(2),
+      volume24h:           mkt.total_volume?.usd?.toString(),
+      marketCap:           mkt.market_cap?.usd?.toString(),
+      priceHigh24h:        mkt.high_24h?.usd?.toString(),
+      priceLow24h:         mkt.low_24h?.usd?.toString(),
+      circulatingSupply:   mkt.circulating_supply?.toString(),
+      totalSupply:         mkt.total_supply?.toString(),
+      fdv:                 mkt.fully_diluted_valuation?.usd?.toString(),
+      ath:                 mkt.ath?.usd?.toString(),
+      athChangePercent:    mkt.ath_change_percentage?.usd?.toFixed(1),
+    };
+    selectedToken._dyn = dyn;
+
+    // Description & links
+    const links = [];
+    if (data.links?.homepage?.[0])      links.push({ label: 'website',   link: data.links.homepage[0] });
+    if (data.links?.twitter_screen_name) links.push({ label: 'twitter',  link: `https://twitter.com/${data.links.twitter_screen_name}` });
+    if (data.links?.subreddit_url)       links.push({ label: 'reddit',   link: data.links.subreddit_url });
+    if (data.links?.repos_url?.github?.[0]) links.push({ label: 'github', link: data.links.repos_url.github[0] });
+
+    selectedToken._meta = {
+      description: data.description?.en?.replace(/<[^>]*>/g,'').substring(0, 300) + '...',
+      links,
+    };
+
+    renderMarketData(t, dyn);
+    renderCoinGeckoExtras(dyn);
+    renderAboutData(selectedToken._meta);
+  } catch(e) { console.error(e); }
+}
+
+// ── Render CoinGecko-specific holder tab ─────────────────
+function renderCoinGeckoExtras(dyn) {
+  document.getElementById('holdersGrid').innerHTML = `
+    ${statBox('ATH',           '$'+formatPrice(dyn.ath), 'gold')}
+    ${statBox('ATH Change',    dyn.athChangePercent+'%', 'red')}
+    ${statBox('7d Change',     (parseFloat(dyn.percentChange7d)>=0?'+':'')+dyn.percentChange7d+'%', parseFloat(dyn.percentChange7d)>=0?'green':'red')}
+    ${statBox('Circ. Supply',  formatNum(dyn.circulatingSupply), '')}
+    ${statBox('Total Supply',  formatNum(dyn.totalSupply), '')}
+    ${statBox('FDV',           '$'+formatNum(dyn.fdv), '')}
+  `;
+}
+
+// ── Load full DEX detail ──────────────────────────────────
+async function selectDEXToken(t) {
+  try {
+    const [dynRes, metaRes] = await Promise.all([
+      fetch(`https://web3.binance.com/bapi/defi/v4/public/wallet-direct/buw/wallet/market/token/dynamic/info?chainId=${t.chainId}&contractAddress=${t.contractAddress}`, { headers: {'Accept-Encoding':'identity'} }),
+      fetch(`https://web3.binance.com/bapi/defi/v1/public/wallet-direct/buw/wallet/dex/market/token/meta/info?chainId=${t.chainId}&contractAddress=${t.contractAddress}`, { headers: {'Accept-Encoding':'identity'} })
+    ]);
+    const dyn  = await dynRes.json();
+    const meta = await metaRes.json();
+
+    if (dyn.success)  { selectedToken._dyn = dyn.data;   renderMarketData(t, dyn.data); renderHoldersData(dyn.data); }
+    if (meta.success) { selectedToken._meta = meta.data; renderAboutData(meta.data); }
+  } catch(e) { console.error(e); }
+}
+
+function renderTokenHeader(t) {
+  const isCEX    = t._source === 'coingecko';
+  const badge    = isCEX
+    ? `<span class="chain-badge" style="color:#8cc63f;border-color:rgba(140,198,63,0.3);background:rgba(140,198,63,0.07)">CoinGecko</span>`
+    : `<span class="chain-badge ${getChainLabel(t.chainId).cls}">${getChainLabel(t.chainId).name}</span>`;
+  const iconHtml = t.icon
+    ? `<img src="${t.icon}" onerror="this.parentElement.textContent='${(t.symbol||'').substring(0,2).toUpperCase()}'" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`
+    : (t.symbol||'?').substring(0,2).toUpperCase();
+  const sub = t.contractAddress
+    ? t.contractAddress.substring(0,10)+'...'
+    : (isCEX ? 'CoinGecko ID: '+t._geckoId : '');
+
+  document.getElementById('tokenHeader').innerHTML = `
+    <div class="token-header-icon">${iconHtml}</div>
+    <div class="token-header-info">
+      <h2>${t.name} (${t.symbol})</h2>
+      <div class="sub">${badge} <span style="margin-left:8px;font-size:0.72rem">${sub}</span></div>
+    </div>`;
+}
+
+function renderMarketData(t, dyn) {
+  const price  = parseFloat(dyn?.price  || t.price  || 0);
+  const change = parseFloat(dyn?.percentChange24h || t.percentChange24h || 0);
+  const cls    = change >= 0 ? 'green' : 'red';
+  const sign   = change >= 0 ? '+' : '';
+  const d      = dyn || t;
+
+  document.getElementById('marketGrid').innerHTML = `
+    ${statBox('Price',      '$'+formatPrice(price),              change>=0?'gold':'red')}
+    ${statBox('24h Change', sign+change.toFixed(2)+'%',          cls)}
+    ${statBox('1h Change',  (parseFloat(d.percentChange1h||0)>=0?'+':'')+parseFloat(d.percentChange1h||0).toFixed(2)+'%', parseFloat(d.percentChange1h||0)>=0?'green':'red')}
+    ${statBox('Volume 24h', '$'+formatNum(d.volume24h),          '')}
+    ${statBox('Market Cap', '$'+formatNum(d.marketCap||t.marketCap), '')}
+    ${d.priceHigh24h ? statBox('High 24h', '$'+formatPrice(d.priceHigh24h), 'green') : ''}
+    ${d.priceLow24h  ? statBox('Low 24h',  '$'+formatPrice(d.priceLow24h),  'red')   : ''}
+    ${d.count24h     ? statBox('Txns 24h', formatNum(d.count24h), '')                 : ''}
+    ${d.count24hBuy  ? statBox('Buys/Sells', d.count24hBuy+' / '+d.count24hSell, '') : ''}
+  `;
+}
+
+function renderHoldersData(dyn) {
+  document.getElementById('holdersGrid').innerHTML = `
+    ${statBox('Total Holders',  formatNum(dyn.holders), '')}
+    ${statBox('Top 10 Hold%',   parseFloat(dyn.top10HoldersPercentage||0).toFixed(1)+'%', '')}
+    ${statBox('KYC Holders',    formatNum(dyn.kycHolderCount), 'green')}
+    ${statBox('KOL Holders',    dyn.kolHolders||'0', '')}
+    ${statBox('Smart Money',    dyn.smartMoneyHolders||'0', '')}
+    ${statBox('Total Supply',   formatNum(dyn.totalSupply), '')}
+    ${statBox('Circ. Supply',   formatNum(dyn.circulatingSupply), '')}
+    ${statBox('FDV',            '$'+formatNum(dyn.fdv), '')}
+  `;
+}
+
+function renderAboutData(meta) {
+  const links = (meta.links || []).map(l =>
+    `<a href="${l.link}" target="_blank" style="color:var(--accent);font-size:0.8rem;text-decoration:none;
+    background:rgba(240,185,11,0.08);padding:4px 10px;border-radius:6px;border:1px solid rgba(240,185,11,0.2)">
+    ${l.label}</a>`).join('');
+  document.getElementById('aboutContent').innerHTML = `
+    ${meta.description ? `<p style="font-size:0.85rem;color:var(--muted);line-height:1.6;margin-bottom:14px">${meta.description}</p>` : ''}
+    ${meta.creatorAddress ? `<p style="font-family:'Space Mono',monospace;font-size:0.72rem;color:var(--muted);margin-bottom:12px">Creator: ${meta.creatorAddress}</p>` : ''}
+    ${links ? `<div style="display:flex;flex-wrap:wrap;gap:8px">${links}</div>` : '<p style="color:var(--muted);font-size:0.82rem">No links available</p>'}`;
+}
+
+function statBox(label, val, cls) {
+  return `<div class="stat-box"><label>${label}</label><div class="val ${cls}">${val||'—'}</div></div>`;
+}
+
+// ===================== GENERATE POST =====================
+async function generatePost() {
+  if (!selectedToken) { showToast('info','ℹ','Select a token first'); return; }
+
+  const genBtn = document.querySelector('.btn-generate');
+  genBtn.innerHTML = '<span class="spinner"></span> Analyzing 15m/1h/4h...';
+  genBtn.style.pointerEvents = 'none';
+
+  const t      = selectedToken;
+  const dyn    = t._dyn || {};
+  const change24h = parseFloat(dyn.percentChange24h || t.percentChange24h || 0);
+  const change1h  = parseFloat(dyn.percentChange1h  || 0);
+  const change15m = parseFloat(dyn.percentChange5m  || 0);
+  const price     = parseFloat(dyn.price || t.price || 0);
+  const vol       = dyn.volume24h || t.volume24h;
+
+  // ── Fetch all 3 timeframes + news + orderbook in parallel ─
+  let mtf = null;
+  let newsSection = '• No recent news available.';
+  let obLiq = null;
+
+  // Build Binance symbol for orderbook (BSC/Base tokens paired with USDT)
+  const obSymbol = (selectedToken.symbol || '').toUpperCase() + 'USDT';
+
+  try {
+    const [mtfRes, newsRes, obRes] = await Promise.allSettled([
+      fetchMultiTimeframeSignal(t),
+      fetchCoinNews(t.name, t.symbol),
+      fetchOrderbookLiquidity(obSymbol)
+    ]);
+    if (mtfRes.status  === 'fulfilled') mtf         = mtfRes.value;
+    if (newsRes.status === 'fulfilled') newsSection = newsRes.value;
+    if (obRes.status   === 'fulfilled') obLiq       = obRes.value;
+  } catch(e) { console.error(e); }
+
+  // ── Market block ──────────────────────────────────────────
+  const changeSign = change24h >= 0 ? '🟢' : '🔴';
+  const momentum   = change24h >= 10 ? '🚀 PUMPING HARD'
+                   : change24h >= 5  ? '📈 Strong Bullish'
+                   : change24h >= 2  ? '↗️ Bullish Move'
+                   : change24h >= 0  ? '🔹 Slightly Green'
+                   : change24h > -5  ? '📉 Slight Dip'
+                   :                   '🔴 Bearish';
+
+  const marketBlock =
+`💰 Price      : $${formatPrice(price)}
+📊 24h Change : ${change24h>=0?'+':''}${change24h.toFixed(2)}%  |  1h: ${change1h>=0?'+':''}${change1h.toFixed(2)}%
+📦 Volume 24h : $${formatNum(vol)}
+${dyn.marketCap ? `🏦 Market Cap  : $${formatNum(dyn.marketCap)}` : ''}
+${dyn.holders   ? `👥 Holders     : ${formatNum(dyn.holders)}`    : ''}`;
+
+  // ── Orderbook liquidity block ─────────────────────────────
+  let obBlock = '';
+  if (obLiq) {
+    const buyWalls  = obLiq.bigBuyWalls.map(w  => `  $${formatPrice(w.price)} (${formatNum(w.size)} ${t.symbol})`).join('\n');
+    const sellWalls = obLiq.bigSellWalls.map(w => `  $${formatPrice(w.price)} (${formatNum(w.size)} ${t.symbol})`).join('\n');
+    obBlock = `
+📊 Order Book Liquidity Walls:
+🟢 Big Buy Walls (Support):
+${buyWalls}
+🔴 Big Sell Walls (Resistance):
+${sellWalls}`;
+  }
+
+  // ── Timeframe rows ────────────────────────────────────────
+  const tfRow = (label, tf) => {
+    if (!tf) return `${label} │ ⬜ No data`;
+    const icon = tf.type === 'BUY' ? '🟢 BUY ' : tf.type === 'SELL' ? '🔴 SELL' : '🟡 WAIT';
+    return `${label} │ ${icon}  RSI: ${tf.rsi}  Vol: ${tf.volSpike ? '🔥 Spike' : 'Normal'}`;
+  };
+
+  // ── Final combined signal ─────────────────────────────────
+  const combined = mtf ? mtf.combined : null;
+  const waitZone = mtf ? mtf.waitZone : null;
+
+  const termLabel = combined
+    ? (combined.term === 'SHORT'  ? '⚡ SHORT TERM (15m)'
+     : combined.term === 'MID'    ? '📊 MID TERM (1h)'
+     : combined.term === 'LONG'   ? '📐 LONG TERM (4h)'
+     : combined.term === 'STRONG' ? '💪 ALL TFs ALIGNED'
+     : '')
+    : '';
+
+  const sigHeader = combined && combined.type !== 'NEUTRAL'
+    ? (combined.type === 'BUY'  ? `🟢 SPOT BUY  — ${termLabel}`
+     :                            `🔴 SPOT SELL — ${termLabel}`)
+    : '⏳ WAIT FOR ENTRY';
+
+  const signalBlock = (combined && combined.type !== 'NEUTRAL') ? `
+━━━━━━━━━━━━━━━━━━━━━━━━━━
+${sigHeader}
+━━━━━━━━━━━━━━━━━━━━━━━━━━
+📊 TF Analysis:
+${mtf ? tfRow('⚡15m', mtf.tf15m) : ''}
+${mtf ? tfRow('📊 1h ', mtf.tf1h)  : ''}
+${mtf ? tfRow('📐 4h ', mtf.tf4h)  : ''}
+
+🎯 Entry Zone : $${formatPrice(combined.entryLow)} – $${formatPrice(combined.entryHigh)}
+🟢 TP1        : $${formatPrice(combined.tp1)}  (+${combined.tp1Pct}%)
+🚀 TP2        : $${formatPrice(combined.tp2)}  (+${combined.tp2Pct}%)
+🛑 Stop Loss  : $${formatPrice(combined.sl)}   (-${combined.slPct}%)
+⚖️ Risk/Reward: 1 : ${combined.rrRatio}
+${obBlock}
+` : `
+━━━━━━━━━━━━━━━━━━━━━━━━━━
+⏳ NO SIGNAL — WAIT FOR ENTRY
+━━━━━━━━━━━━━━━━━━━━━━━━━━
+📊 TF Analysis:
+${mtf ? tfRow('⚡15m', mtf.tf15m) : '⚡15m │ ⬜ No data'}
+${mtf ? tfRow('📊 1h ', mtf.tf1h)  : '📊 1h  │ ⬜ No data'}
+${mtf ? tfRow('📐 4h ', mtf.tf4h)  : '📐 4h  │ ⬜ No data'}
+
+⚠️ TFs conflicting — Ideal entry when price dips to support:
+${waitZone ? `🎯 Wait Entry Zone : $${formatPrice(waitZone.entryLow)} – $${formatPrice(waitZone.entryHigh)}
+📉 Key Support     : $${formatPrice(waitZone.support)}  (-${waitZone.downFromCurrent}% from now)
+📈 Key Resistance  : $${formatPrice(waitZone.resistance)}  (+${waitZone.upToResist}% from now)
+💡 Strategy: Wait for price to pull back to support zone, then enter for a bounce.` : ''}
+${obBlock}
+`;
+
+  const template =
+`${changeSign} $${t.symbol} — ${momentum}!
+
+${marketBlock}
+${signalBlock}
+📰 Latest News:
+${newsSection}
+
+⚠️ DYOR — Not financial advice.
+
+#${t.symbol} #${t.name.replace(/\s+/g,'')} #SpotSignal #${getChainLabel(t.chainId).name} #Crypto #BinanceSquare`;
+
+  document.getElementById('postContent').value = template.trim();
+  updateCharCount();
+
+  const toastMsg = combined && combined.type !== 'NEUTRAL'
+    ? `${combined.type === 'BUY' ? '🟢 BUY' : '🔴 SELL'} signal — ${termLabel}`
+    : '🟡 No clear signal — timeframes conflicting';
+  showToast(combined?.type === 'BUY' ? 'success' : combined?.type === 'SELL' ? 'error' : 'info', '📊', toastMsg);
+
+  genBtn.innerHTML = '✨ Generate Post';
+  genBtn.style.pointerEvents = '';
+}
+
+// ===================== MULTI-TIMEFRAME ENGINE =====================
+async function fetchMultiTimeframeSignal(token) {
+  const platformMap = { '56':'bsc', '8453':'base', 'CT_501':'solana' };
+  const platform  = platformMap[token.chainId] || 'bsc';
+  const isCEX     = token._source === 'coingecko';
+  const geckoArg  = isCEX ? token : null;
+
+  // Fetch all 3 timeframes in parallel
+  const [r15m, r1h, r4h] = await Promise.allSettled([
+    fetchCandles(token.contractAddress, platform, '15min', 80,  geckoArg),
+    fetchCandles(token.contractAddress, platform, '1h',    100, geckoArg),
+    fetchCandles(token.contractAddress, platform, '4h',    100, geckoArg)
+  ]);
+
+  const candles15m = r15m.status === 'fulfilled' ? r15m.value : null;
+  const candles1h  = r1h.status  === 'fulfilled' ? r1h.value  : null;
+  const candles4h  = r4h.status  === 'fulfilled' ? r4h.value  : null;
+
+  const tf15m = candles15m ? analyzeCandles(candles15m) : null;
+  const tf1h  = candles1h  ? analyzeCandles(candles1h)  : null;
+  const tf4h  = candles4h  ? analyzeCandles(candles4h)  : null;
+
+  // ── Combine signals ───────────────────────────────────────
+  const signals = [tf15m, tf1h, tf4h].filter(Boolean);
+  if (!signals.length) return null;
+
+  const buys  = signals.filter(s => s.type === 'BUY').length;
+  const sells = signals.filter(s => s.type === 'SELL').length;
+
+  // Determine overall bias — LOOSENED thresholds
+  let combinedType = 'NEUTRAL';
+  let term = 'NEUTRAL';
+
+  if      (buys >= 3)                                          { combinedType = 'BUY';  term = 'STRONG'; }
+  else if (buys === 2 && tf4h?.type === 'BUY')                 { combinedType = 'BUY';  term = 'LONG'; }
+  else if (buys === 2 && tf1h?.type === 'BUY')                 { combinedType = 'BUY';  term = 'MID'; }
+  else if (buys === 2 && tf15m?.type === 'BUY')                { combinedType = 'BUY';  term = 'SHORT'; }
+  else if (buys === 1 && tf4h?.type === 'BUY')                 { combinedType = 'BUY';  term = 'LONG'; }
+  else if (buys === 1 && tf1h?.type === 'BUY')                 { combinedType = 'BUY';  term = 'MID'; }
+  else if (buys === 1 && tf15m?.type === 'BUY')                { combinedType = 'BUY';  term = 'SHORT'; }
+  else if (sells >= 3)                                         { combinedType = 'SELL'; term = 'STRONG'; }
+  else if (sells === 2 && tf4h?.type === 'SELL')               { combinedType = 'SELL'; term = 'LONG'; }
+  else if (sells === 2 && tf1h?.type === 'SELL')               { combinedType = 'SELL'; term = 'MID'; }
+  else if (sells === 2 && tf15m?.type === 'SELL')              { combinedType = 'SELL'; term = 'SHORT'; }
+  else if (sells === 1 && tf4h?.type === 'SELL')               { combinedType = 'SELL'; term = 'LONG'; }
+  else if (sells === 1 && tf1h?.type === 'SELL')               { combinedType = 'SELL'; term = 'MID'; }
+  else if (sells === 1 && tf15m?.type === 'SELL')              { combinedType = 'SELL'; term = 'SHORT'; }
+
+  // ── Always compute expected entry from best available TF ──
+  const anyTf   = tf4h || tf1h || tf15m;
+  const current  = anyTf?.current || 0;
+  const support4h   = tf4h?.support    || null;
+  const support1h   = tf1h?.support    || null;
+  const support15m  = tf15m?.support   || null;
+  const resist4h    = tf4h?.resistance || null;
+  const resist1h    = tf1h?.resistance || null;
+
+  // Best support = highest support below current (most recent floor)
+  const supports   = [support4h, support1h, support15m].filter(Boolean).filter(s => s < current);
+  const bestSupport = supports.length ? Math.max(...supports) : current * 0.95;
+
+  // Best resistance = lowest resistance above current
+  const resistances  = [resist4h, resist1h].filter(Boolean).filter(r => r > current);
+  const bestResist   = resistances.length ? Math.min(...resistances) : current * 1.08;
+
+  // Expected entry zone for NEUTRAL: just above key support
+  const expectedEntryLow  = bestSupport * 1.001;
+  const expectedEntryHigh = bestSupport * 1.015;
+  const pct = (target, base) => Math.abs(((target - base) / base) * 100).toFixed(1);
+
+  if (combinedType === 'NEUTRAL') {
+    return {
+      tf15m, tf1h, tf4h,
+      combined: { type: 'NEUTRAL', term: 'NEUTRAL' },
+      waitZone: {
+        entryLow:   expectedEntryLow,
+        entryHigh:  expectedEntryHigh,
+        support:    bestSupport,
+        resistance: bestResist,
+        downFromCurrent: pct(bestSupport, current),
+        upToResist:      pct(bestResist,  current),
+      }
+    };
+  }
+
+  // ── Use dominant TF for TP/SL ─────────────────────────────
+  let baseTf = tf4h || tf1h || tf15m;
+  if (term === 'SHORT') baseTf = tf15m || tf1h || tf4h;
+  else if (term === 'MID') baseTf = tf1h || tf4h;
+
+  const resistance = baseTf.resistance;
+  const support    = baseTf.support;
+
+  const tp1Mult = term === 'SHORT' ? 1.005 : term === 'MID' ? 1.01 : term === 'LONG' ? 1.015 : 1.02;
+  const tp2Mult = term === 'SHORT' ? 1.02 : term === 'MID' ? 1.05 : term === 'LONG' ? 1.08 : 1.10;
+  const slMult  = term === 'SHORT' ? 0.97 : term === 'MID' ? 0.955 : 0.94;
+
+  const entryLow  = current * 0.995;
+  const entryHigh = current * 1.005;
+
+  let tp1, tp2, sl;
+  if (combinedType === 'BUY') {
+    tp1 = resistance && resistance > current ? Math.min(resistance, current * tp1Mult) : current * tp1Mult;
+    tp2 = current * tp2Mult;
+    sl  = support    && support    < current ? Math.max(support * 0.985, current * slMult) : current * slMult;
+  } else {
+    tp1 = support    && support    < current ? Math.max(support, current * (2-tp1Mult)) : current * (2-tp1Mult);
+    tp2 = current * (2-tp2Mult);
+    sl  = resistance && resistance > current ? Math.min(resistance * 1.015, current * (2-slMult)) : current * (2-slMult);
+  }
+
+  const reward  = Math.abs(tp1 - current);
+  const risk    = Math.abs(current - sl);
+  const rrRatio = risk > 0 ? (reward / risk).toFixed(2) : 'N/A';
+
+  return {
+    tf15m, tf1h, tf4h,
+    combined: {
+      type: combinedType, term,
+      entryLow, entryHigh, tp1, tp2, sl,
+      tp1Pct: pct(tp1, current),
+      tp2Pct: pct(tp2, current),
+      slPct:  pct(sl,  current),
+      rrRatio
+    }
+  };
+}
+
+// ── Fetch candles — supports both DEX and CEX tokens ─────
+async function fetchCandles(address, platform, interval, limit, geckoToken) {
+  // CoinGecko/CEX token → use Binance spot kline API
+  if (geckoToken) {
+    const binanceInterval = { '15min':'15m', '1h':'1h', '4h':'4h' }[interval] || interval;
+    const symbol = geckoToken._binanceSymbol || (geckoToken.symbol.toUpperCase()+'USDT');
+    const url = `https://api.binance.com/api/v3/klines?symbol=${symbol}&interval=${binanceInterval}&limit=${limit}`;
+    try {
+      const res  = await fetch(url);
+      const data = await res.json();
+      if (!Array.isArray(data) || data.length < 15) return null;
+      // Binance kline: [openTime, open, high, low, close, volume, ...]
+      // Convert to our format: [open, high, low, close, volume, timestamp, count]
+      return data.map(k => [
+        parseFloat(k[1]), // open
+        parseFloat(k[2]), // high
+        parseFloat(k[3]), // low
+        parseFloat(k[4]), // close
+        parseFloat(k[5]), // volume
+        k[0],             // timestamp
+        parseInt(k[8])    // trade count
+      ]);
+    } catch(e) { return null; }
+  }
+
+  // DEX token → use Binance DEX kline
+  const url = `https://dquery.sintral.io/u-kline/v1/k-line/candles?address=${address}&platform=${platform}&interval=${interval}&limit=${limit}`;
+  try {
+    const res  = await fetch(url, { headers: { 'Accept-Encoding': 'identity' } });
+    const data = await res.json();
+    if (!data.data || data.data.length < 15) return null;
+    return data.data;
+  } catch(e) { return null; }
+}
+
+// ── Analyze one timeframe's candles (loosened thresholds) ─
+function analyzeCandles(candles) {
+  const highs   = candles.map(c => c[1]);
+  const lows    = candles.map(c => c[2]);
+  const closes  = candles.map(c => c[3]);
+  const volumes = candles.map(c => c[4]);
+  const current = closes[closes.length - 1];
+
+  const ema20 = calcEMA(closes, 20);
+  const ema50 = closes.length >= 50 ? calcEMA(closes, 50) : null;
+  const rsi   = calcRSI(closes, 14);
+
+  const recentVols = volumes.slice(-20);
+  const avgVol     = recentVols.reduce((a,b)=>a+b,0) / recentVols.length;
+  const volSpike   = volumes[volumes.length-1] > avgVol * 1.2; // was 1.4
+
+  const resistance = findResistance(highs.slice(-50), current);
+  const support    = findSupport(lows.slice(-50), current);
+
+  // LOOSENED: removed ema50 requirement, wider RSI bands
+  const bullish = current > ema20 && rsi > 40 && rsi < 78;
+  const bearish = current < ema20 && rsi < 60;
+
+  // Extra confirmation: last 3 candles trend
+  const last3 = closes.slice(-3);
+  const recentUp   = last3[2] > last3[0];
+  const recentDown = last3[2] < last3[0];
+
+  let type = 'NEUTRAL';
+  if      (bullish && recentUp)   type = 'BUY';
+  else if (bullish)               type = 'BUY';   // even without candle confirm
+  else if (bearish && recentDown) type = 'SELL';
+  else if (bearish)               type = 'SELL';
+
+  return { type, rsi: rsi.toFixed(1), volSpike, current, resistance, support, ema20, ema50 };
+}
+
+// ── Fetch Binance orderbook for liquidity wall levels ─────
+async function fetchOrderbookLiquidity(symbol) {
+  // symbol format: BNBUSDT, BTCUSDT etc
+  try {
+    const url = `https://api.binance.com/api/v3/depth?symbol=${symbol}&limit=100`;
+    const res  = await fetch(url);
+    const data = await res.json();
+    if (!data.bids || !data.asks) return null;
+
+    // Find biggest bid walls (buy liquidity = support zones)
+    const bids = data.bids.map(b => ({ price: parseFloat(b[0]), qty: parseFloat(b[1]) }));
+    const asks = data.asks.map(a => ({ price: parseFloat(a[0]), qty: parseFloat(a[1]) }));
+
+    // Sort by size, take top 3 walls
+    const topBids = [...bids].sort((a,b) => b.qty - a.qty).slice(0, 3).sort((a,b) => b.price - a.price);
+    const topAsks = [...asks].sort((a,b) => b.qty - a.qty).slice(0, 3).sort((a,b) => a.price - b.price);
+
+    return {
+      bigBuyWalls:  topBids.map(b => ({ price: b.price, size: b.qty })),
+      bigSellWalls: topAsks.map(a => ({ price: a.price, size: a.qty })),
+    };
+  } catch(e) { return null; }
+}
+
+// ── EMA calculation ───────────────────────────────────────
+function calcEMA(data, period) {
+  const k = 2 / (period + 1);
+  let ema = data.slice(0, period).reduce((a,b)=>a+b,0) / period;
+  for (let i = period; i < data.length; i++) {
+    ema = data[i] * k + ema * (1 - k);
+  }
+  return ema;
+}
+
+// ── RSI calculation ───────────────────────────────────────
+function calcRSI(data, period = 14) {
+  let gains = 0, losses = 0;
+  for (let i = data.length - period; i < data.length; i++) {
+    const diff = data[i] - data[i-1];
+    if (diff >= 0) gains  += diff;
+    else           losses -= diff;
+  }
+  const rs = losses === 0 ? 100 : gains / losses;
+  return 100 - (100 / (1 + rs));
+}
+
+// ── Resistance: highest swing high above current ──────────
+function findResistance(highs, current) {
+  const above = highs.filter(h => h > current * 1.005);
+  if (!above.length) return null;
+  return Math.min(...above);
+}
+
+// ── Support: highest swing low below current ──────────────
+function findSupport(lows, current) {
+  const below = lows.filter(l => l < current * 0.995);
+  if (!below.length) return null;
+  return Math.max(...below);
+}
+
+// ── Fetch news via Claude API with web search ─────────────
+async function fetchCoinNews(coinName, coinSymbol) {
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 1000,
+      tools: [{ type: 'web_search_20250305', name: 'web_search' }],
+      system: `You are a crypto news summarizer. Search for the latest news about the given coin and return ONLY 2-3 bullet points (each starting with •) summarizing the most important recent developments. Be concise, factual, and neutral. No intro text, no outro, just the bullet points. Max 3 lines total.`,
+      messages: [{
+        role: 'user',
+        content: `Find the latest news (last 7 days) about ${coinName} (${coinSymbol}) cryptocurrency. Return only 2-3 bullet points.`
+      }]
+    })
+  });
+  const data = await res.json();
+  const text = (data.content || [])
+    .filter(b => b.type === 'text')
+    .map(b => b.text)
+    .join('\n').trim();
+  return text || '• No recent news available at this time.';
+}
+
+function getInsightLine(change, dyn) {
+  const buyRatio = dyn.count24hBuy && dyn.count24hSell
+    ? (parseInt(dyn.count24hBuy) / (parseInt(dyn.count24hBuy)+parseInt(dyn.count24hSell)) * 100).toFixed(0)
+    : null;
+  if (change >= 10) return `🔥 Massive pump! DYOR before chasing.`;
+  if (change >= 5)  return `Strong bullish momentum. ${buyRatio ? `Buy pressure at ${buyRatio}% of trades.` : 'Watch for continuation.'}`;
+  if (change >= 0)  return `Holding steady in green zone. ${buyRatio ? `Buyers dominating at ${buyRatio}%.` : ''}`;
+  if (change > -5)  return `Slight correction — could be an entry opportunity. DYOR.`;
+  return `Bearish pressure. Wait for support before entering. DYOR.`;
+}
+
+// ===================== POST TO SQUARE =====================
+async function postToSquare() {
+  const content = document.getElementById('postContent').value.trim();
+  if (!content) { showToast('info','📝','Write something first'); return; }
+  if (!apiKey) { showToast('error','🔑','Configure your API Key first'); openApiModal(); return; }
+
+  const btn = document.getElementById('postBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Posting...';
+
+  try {
+    const res = await fetch('/api/proxy', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ apiKey, content })
+    });
+    const data = await res.json();
+
+    if (data.code === '000000') {
+      const postId = data.data?.id;
+      const url = postId ? `https://www.binance.com/square/post/${postId}` : null;
+      showToast('success','🚀', url ? `Posted! <a href="${url}" target="_blank" style="color:var(--accent)">View Post</a>` : 'Posted to Binance Square!');
+      addAlertLog('posted', `✅ Posted: ${content.substring(0,40)}...`, url);
+      document.getElementById('postContent').value = '';
+      updateCharCount();
+    } else {
+      const errMsg = getPostError(data.code);
+      showToast('error','❌', errMsg);
+    }
+  } catch(e) {
+    showToast('error','⚠','Network error. Check console.');
+    console.error(e);
+  }
+
+  btn.disabled = false;
+  btn.innerHTML = '🚀 Post to Square';
+}
+
+function getPostError(code) {
+  const codes = {
+    '10004':'Network error. Try again.',
+    '10005':'Identity verification required.',
+    '20002':'Sensitive words detected.',
+    '20013':'Content too long.',
+    '220003':'API Key not found.',
+    '220004':'API Key expired.',
+    '220009':'Daily post limit reached.',
+    '220011':'Content body empty.',
+    '2000001':'Account blocked.',
+  };
+  return codes[code] || `Error code: ${code}`;
+}
+
+// ===================== WATCHLIST =====================
+function addToWatchlist() {
+  if (!selectedToken) { showToast('info','ℹ','Select a token first'); return; }
+  const t = selectedToken;
+  const exists = watchlist.find(w => w.contractAddress === t.contractAddress && w.chainId === t.chainId);
+  if (exists) { showToast('info','👁',`${t.symbol} already in watchlist`); return; }
+
+  watchlist.push({
+    name: t.name, symbol: t.symbol, chainId: t.chainId,
+    contractAddress: t.contractAddress, icon: t.icon,
+    basePrice: parseFloat(t._dyn?.price || t.price || 0),
+    addedAt: Date.now()
+  });
+  localStorage.setItem('sq_watchlist', JSON.stringify(watchlist));
+  renderWatchlist();
+  showToast('success','👁',`${t.symbol} added to watchlist`);
+}
+
+function removeFromWatchlist(idx) {
+  watchlist.splice(idx, 1);
+  localStorage.setItem('sq_watchlist', JSON.stringify(watchlist));
+  renderWatchlist();
+}
+
+function renderWatchlist() {
+  const container = document.getElementById('watchlistContainer');
+  if (watchlist.length === 0) {
+    container.innerHTML = `<div class="empty-state" style="padding:20px"><div class="icon" style="font-size:1.5rem">👁</div><p style="font-size:0.8rem">No tokens in watchlist.<br>Search a token and click "Add to Monitor"</p></div>`;
+    return;
+  }
+
+  container.innerHTML = watchlist.map((t, i) => {
+    const chainLabel = getChainLabel(t.chainId);
+    const currentChange = t.currentChange !== undefined ? t.currentChange : 0;
+    const changeClass = currentChange >= 0 ? 'up' : 'down';
+    const changeSign = currentChange >= 0 ? '+' : '';
+    return `<div class="watchlist-item">
+      <div class="wl-info">
+        <div class="token-icon" style="width:34px;height:34px;font-size:0.7rem">${t.symbol.substring(0,2)}</div>
+        <div>
+          <div class="wl-name">${t.symbol} <span class="chain-badge ${chainLabel.cls}">${chainLabel.name}</span></div>
+          <div class="wl-change change ${changeClass}" style="margin-top:3px">${changeSign}${currentChange.toFixed(2)}% from add</div>
+        </div>
+      </div>
+      <button class="remove-btn" onclick="removeFromWatchlist(${i})">✕</button>
+    </div>`;
+  }).join('');
+}
+
+// ===================== MONITOR =====================
+async function toggleMonitor() {
+  if (isMonitoring) {
+    stopMonitor();
+  } else {
+    startMonitor();
+  }
+}
+
+function startMonitor() {
+  if (watchlist.length === 0) {
+    showToast('info','👁','Add tokens to watchlist first');
+    return;
+  }
+  isMonitoring = true;
+  const interval = parseInt(document.getElementById('checkInterval').value);
+
+  document.getElementById('monitorBtn').textContent = '⏹ Stop Monitoring';
+  document.getElementById('monitorBtn').style.background = 'var(--red)';
+  document.getElementById('monitorBadge').classList.add('active');
+  document.getElementById('monitorStatus').textContent = 'Monitoring...';
+
+  checkAllTokens(); // immediate first check
+  monitorInterval = setInterval(checkAllTokens, interval);
+  showToast('success','✅','Monitoring started!');
+}
+
+function stopMonitor() {
+  isMonitoring = false;
+  clearInterval(monitorInterval);
+  document.getElementById('monitorBtn').textContent = '▶ Start Monitoring';
+  document.getElementById('monitorBtn').style.background = '';
+  document.getElementById('monitorBadge').classList.remove('active');
+  document.getElementById('monitorStatus').textContent = 'Monitor Off';
+  showToast('info','⏹','Monitoring stopped');
+}
+
+async function checkAllTokens() {
+  const threshold = parseFloat(document.getElementById('pumpThreshold').value) || 5;
+
+  for (let i = 0; i < watchlist.length; i++) {
+    const t = watchlist[i];
+    try {
+      const res = await fetch(`https://web3.binance.com/bapi/defi/v4/public/wallet-direct/buw/wallet/market/token/dynamic/info?chainId=${t.chainId}&contractAddress=${t.contractAddress}`,
+        { headers: {'Accept-Encoding':'identity'} });
+      const data = await res.json();
+      if (data.success && data.data) {
+        const currentPrice = parseFloat(data.data.price);
+        const basePrice = t.basePrice || currentPrice;
+        const changeFromBase = ((currentPrice - basePrice) / basePrice) * 100;
+        const change24h = parseFloat(data.data.percentChange24h || 0);
+
+        watchlist[i].currentPrice = currentPrice;
+        watchlist[i].currentChange = changeFromBase;
+
+        // Check pump condition (24h change)
+        if (Math.abs(change24h) >= threshold) {
+          const isPump = change24h > 0;
+          const alreadyAlerted = tokenPriceCache[t.contractAddress]?.alerted;
+          const cacheChange = tokenPriceCache[t.contractAddress]?.change24h;
+
+          // Only alert once per significant threshold crossing
+          if (!alreadyAlerted || Math.abs(change24h - (cacheChange||0)) > 2) {
+            triggerAlert(t, change24h, data.data, isPump);
+            tokenPriceCache[t.contractAddress] = { alerted: true, change24h };
+          }
+        } else {
+          if (tokenPriceCache[t.contractAddress]) {
+            tokenPriceCache[t.contractAddress].alerted = false;
+          }
+        }
+      }
+    } catch(e) { console.error('Monitor error:', t.symbol, e); }
+  }
+  renderWatchlist();
+}
+
+async function triggerAlert(token, change, dynData, isPump) {
+  const sign = change >= 0 ? '+' : '';
+  const emoji = isPump ? '🚀' : '📉';
+  const type = isPump ? 'pump' : 'dump';
+
+  // Sound alert
+  if (document.getElementById('soundToggle').classList.contains('on')) {
+    playAlertSound(isPump);
+  }
+
+  // Visual toast
+  showToast(isPump ? 'success' : 'error', emoji,
+    `${token.symbol} ${isPump ? 'PUMPED' : 'DUMPED'} ${sign}${change.toFixed(2)}% in 24h!`);
+
+  // Log
+  addAlertLog(type, `${emoji} ${token.symbol}: ${sign}${change.toFixed(2)}% 24h | $${formatPrice(dynData.price)}`);
+
+  // Auto-post
+  if (document.getElementById('autoPostToggle').classList.contains('on') && apiKey) {
+    const postText = generateAlertPost(token, change, dynData, isPump);
+    await autoPost(postText, token.symbol);
+  }
+}
+
+function generateAlertPost(token, change, dyn, isPump) {
+  const sign = change >= 0 ? '+' : '';
+  const emoji = isPump ? '🚀' : '⚠️';
+  return `${emoji} ALERT: $${token.symbol} ${isPump ? 'PUMPING' : 'DUMPING'}!
+
+📊 24h Change: ${sign}${change.toFixed(2)}%
+💰 Current Price: $${formatPrice(dyn.price)}
+📦 Volume 24h: $${formatNum(dyn.volume24h)}
+👥 Holders: ${formatNum(dyn.holders)}
+
+${isPump ? '🔥 Strong bullish momentum detected!' : '⚠️ Selling pressure increasing. DYOR before entering.'}
+
+#${token.symbol} #CryptoAlert #BinanceSquare`;
+}
+
+async function autoPost(content, symbol) {
+  try {
+    const res = await fetch('/api/proxy', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ apiKey, content })
+    });
+    const data = await res.json();
+    if (data.code === '000000') {
+      const postId = data.data?.id;
+      addAlertLog('posted', `✅ Auto-posted alert for ${symbol}`, postId ? `https://www.binance.com/square/post/${postId}` : null);
+    }
+  } catch(e) { console.error('Auto-post error:', e); }
+}
+
+// ===================== ALERTS LOG =====================
+function addAlertLog(type, message, url) {
+  const log = document.getElementById('alertsLog');
+  // Remove empty state
+  const emptyState = log.querySelector('.empty-state');
+  if (emptyState) emptyState.remove();
+
+  const time = new Date().toLocaleTimeString();
+  const linkHtml = url ? `<a href="${url}" target="_blank" style="color:var(--accent);font-size:0.72rem;text-decoration:none">View →</a>` : '';
+
+  const el = document.createElement('div');
+  el.className = `alert-item ${type}`;
+  el.innerHTML = `<div class="alert-title">${message}</div>
+    <div class="alert-time">${time} ${linkHtml}</div>`;
+
+  log.insertBefore(el, log.firstChild);
+
+  // Max 20 alerts
+  while (log.children.length > 20) log.removeChild(log.lastChild);
+}
+
+// ===================== SOUND =====================
+function playAlertSound(isPump) {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const freqs = isPump ? [440, 554, 659] : [330, 277, 220];
+    freqs.forEach((freq, i) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain); gain.connect(ctx.destination);
+      osc.frequency.value = freq;
+      osc.type = 'sine';
+      gain.gain.setValueAtTime(0.3, ctx.currentTime + i*0.15);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + i*0.15 + 0.4);
+      osc.start(ctx.currentTime + i*0.15);
+      osc.stop(ctx.currentTime + i*0.15 + 0.4);
+    });
+  } catch(e) {}
+}
+
+// ===================== UTILS =====================
+function formatPrice(p) {
+  if (!p) return '0.00';
+  const n = parseFloat(p);
+  if (n >= 1000) return n.toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2});
+  if (n >= 1) return n.toFixed(4);
+  if (n >= 0.0001) return n.toFixed(6);
+  return n.toExponential(4);
+}
+
+function formatNum(n) {
+  if (!n) return '0';
+  const num = parseFloat(n);
+  if (num >= 1e9) return (num/1e9).toFixed(2)+'B';
+  if (num >= 1e6) return (num/1e6).toFixed(2)+'M';
+  if (num >= 1e3) return (num/1e3).toFixed(2)+'K';
+  return Math.round(num).toLocaleString();
+}
+
+function getChainLabel(chainId) {
+  const chains = {
+    '56': { name: 'BSC', cls: 'chain-bsc' },
+    '8453': { name: 'Base', cls: 'chain-base' },
+    'CT_501': { name: 'Solana', cls: 'chain-sol' },
+  };
+  return chains[chainId] || { name: chainId, cls: 'chain-bsc' };
+}
+
+function updateCharCount() {
+  const len = document.getElementById('postContent').value.length;
+  document.getElementById('charCount').textContent = len;
+}
+
+function clearComposer() {
+  document.getElementById('postContent').value = '';
+  updateCharCount();
+}
+
+function switchTab(name, btn) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('tab-'+name).classList.add('active');
+}
+
+let toastTimer;
+function showToast(type, icon, msg) {
+  const toast = document.getElementById('toast');
+  document.getElementById('toastIcon').textContent = icon;
+  document.getElementById('toastMsg').innerHTML = msg;
+  toast.className = `toast show ${type}`;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => toast.classList.remove('show'), 4000);
+}
+
+// Close modal on overlay click
+document.getElementById('apiModal').addEventListener('click', function(e) {
+  if (e.target === this) closeApiModal();
+});
+</script>
+</body>
+</html>

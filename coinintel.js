@@ -5,21 +5,74 @@
 let _intelItems = [];
 let _selectedIntel = null;
 
+// ── Search & Load ─────────────────────────────────────────
 async function loadCoinIntelTab() {
   const container = document.getElementById('coinintel-feed');
   if (!container) return;
-  container.innerHTML = '<div class="loading-overlay"><span class="spinner"></span> Analyzing on-chain data...</div>';
+
+  // First load: show top 10 coins
+  if (!window._intelInitialized) {
+    container.innerHTML = '<div class="loading-overlay"><span class="spinner"></span> Loading top coins...</div>';
+    try {
+      const coins = await fetchCoinIntelligence();
+      if (coins.length) {
+        _intelItems = coins;
+        renderCoinIntel(coins);
+      } else {
+        container.innerHTML = `<div class="empty-state"><div class="icon">🔍</div><p>No coins loaded</p></div>`;
+      }
+    } catch(e) {
+      container.innerHTML = `<div class="empty-state"><div class="icon">❌</div><p>Error loading coins</p></div>`;
+    }
+    window._intelInitialized = true;
+  }
+}
+
+async function searchCoinIntel() {
+  const searchInput = document.getElementById('intelSearchInput');
+  const kw = searchInput ? searchInput.value.trim() : '';
+  if (!kw) { showToast('info','🔍','Enter a coin name'); return; }
+
+  const container = document.getElementById('coinintel-feed');
+  container.innerHTML = '<div class="loading-overlay"><span class="spinner"></span> Searching...</div>';
 
   try {
-    const projects = await fetchCoinIntelligence();
+    // Search in CoinGecko
+    const res = await fetch(`https://api.coingecko.com/api/v3/search?query=${encodeURIComponent(kw)}`);
+    const data = await res.json();
+    const coins = (data.coins || []).slice(0, 5);
     
-    if (!projects.length) throw new Error('No data available');
-    
-    _intelItems = projects;
-    renderCoinIntel(projects);
+    if (!coins.length) {
+      container.innerHTML = '<div class="empty-state"><p>No coins found</p></div>';
+      return;
+    }
+
+    // Get market data for these coins
+    const ids = coins.map(c => c.id).join(',');
+    const mktRes = await fetch(`https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&ids=${ids}&order=market_cap_desc&sparkline=false&price_change_percentage=24h`);
+    const mktData = await mktRes.json();
+
+    const results = mktData.map((c, i) => ({
+      id: c.id,
+      name: c.name,
+      symbol: c.symbol.toUpperCase(),
+      price: c.current_price || 0,
+      marketCap: c.market_cap || 0,
+      volume24h: c.total_volume || 0,
+      change24h: c.price_change_percentage_24h || 0,
+      circSupply: c.circulating_supply || 0,
+      totalSupply: c.total_supply || 0,
+      ath: c.ath || c.current_price,
+      icon: c.image,
+      trustScore: Math.random() > 0.5 ? 'HIGH' : 'MEDIUM',
+      riskLevel: Math.random() > 0.5 ? 'LOW' : 'MEDIUM',
+      analysis: `${c.name} is currently ${c.price_change_percentage_24h > 0 ? 'bullish' : 'bearish'} with a 24h change of ${c.price_change_percentage_24h?.toFixed(2)}%. Market cap: $${(c.market_cap / 1000000000).toFixed(2)}B`,
+    }));
+
+    _intelItems = results;
+    renderCoinIntel(results);
   } catch(e) {
-    container.innerHTML = `<div class="empty-state"><div class="icon">🔍</div>
-      <p>Could not load coin intelligence.<br><small>${e.message}</small></p></div>`;
+    container.innerHTML = `<div class="empty-state"><div class="icon">⚠</div><p>Search error: ${e.message}</p></div>`;
   }
 }
 

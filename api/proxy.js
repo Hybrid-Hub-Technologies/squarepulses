@@ -65,55 +65,67 @@ export default async function handler(req, res) {
 
     // ── FOREX ─────────────────────────────────────────────
     if (type === 'forex') {
-      try {
-        const r = await fetch('https://nfs.faireconomy.media/ff_calendar_thisweek.json', {
-          headers: { 'User-Agent': 'Mozilla/5.0' }
-        });
-        if (!r.ok) throw new Error(`FF API ${r.status}`);
-        const raw = await r.json();
-        const FLAGS     = { 'USD':'🇺🇸','EUR':'🇪🇺','GBP':'🇬🇧','JPY':'🇯🇵','AUD':'🇦🇺','CAD':'🇨🇦','CHF':'🇨🇭','NZD':'🇳🇿','CNY':'🇨🇳','CNH':'🇨🇳' };
-        const COUNTRIES = { 'USD':'United States','EUR':'Eurozone','GBP':'United Kingdom','JPY':'Japan','AUD':'Australia','CAD':'Canada','CHF':'Switzerland','NZD':'New Zealand','CNY':'China','CNH':'China' };
-        const IMAP = {
-          'CPI':    { text:'High CPI = Fed stays hawkish → bearish for crypto',      bullish:false },
-          'NFP':    { text:'Strong jobs = Fed tightening risk → bearish crypto',      bullish:false },
-          'FOMC':   { text:'Rate decision drives volatility → watch BTC reaction',    bullish:null  },
-          'GDP':    { text:'Weak GDP = risk-off mood → short-term bearish crypto',    bullish:false },
-          'PPI':    { text:'High PPI signals inflation → Fed pressure → bearish',     bullish:false },
-          'PCE':    { text:'Core PCE drives Fed policy → high = bearish crypto',      bullish:false },
-          'UNEMPLOYMENT':{ text:'Rising unemployment = dovish pivot → bullish crypto',bullish:true  },
-          'JOBLESS':{ text:'High jobless claims = Fed may ease → bullish crypto',     bullish:true  },
-          'INTEREST':{ text:'Rate decision is key catalyst — watch for surprise cuts',bullish:null  },
-          'ISM':    { text:'ISM below 50 = contraction → risk-off → bearish crypto', bullish:false },
-          'PMI':    { text:'PMI contraction signals slowdown → bearish sentiment',    bullish:false },
+      const FLAGS     = { 'USD':'🇺🇸','EUR':'🇪🇺','GBP':'🇬🇧','JPY':'🇯🇵','AUD':'🇦🇺','CAD':'🇨🇦','CHF':'🇨🇭','NZD':'🇳🇿','CNY':'🇨🇳','CNH':'🇨🇳' };
+      const COUNTRIES = { 'USD':'United States','EUR':'Eurozone','GBP':'United Kingdom','JPY':'Japan','AUD':'Australia','CAD':'Canada','CHF':'Switzerland','NZD':'New Zealand','CNY':'China','CNH':'China' };
+      const IMAP = {
+        'CPI':       { text:'High CPI = Fed stays hawkish → bearish for crypto',       bullish:false },
+        'NON-FARM':  { text:'Strong jobs = Fed tightening risk → bearish crypto',       bullish:false },
+        'NFP':       { text:'Strong jobs = Fed tightening risk → bearish crypto',       bullish:false },
+        'FOMC':      { text:'Rate decision drives volatility → watch BTC reaction',     bullish:null  },
+        'FEDERAL':   { text:'Fed decision is key catalyst — watch for surprise cuts',   bullish:null  },
+        'INTEREST':  { text:'Rate decision is key catalyst — watch for surprise cuts',  bullish:null  },
+        'GDP':       { text:'Weak GDP = risk-off mood → short-term bearish crypto',     bullish:false },
+        'PPI':       { text:'High PPI signals inflation → Fed pressure → bearish',      bullish:false },
+        'PCE':       { text:'Core PCE drives Fed policy → high = bearish crypto',       bullish:false },
+        'UNEMPLOYMENT':{ text:'Rising unemployment = dovish pivot → bullish crypto',    bullish:true  },
+        'JOBLESS':   { text:'High jobless claims = Fed may ease → bullish crypto',      bullish:true  },
+        'ISM':       { text:'ISM below 50 = contraction → risk-off → bearish crypto',  bullish:false },
+        'PMI':       { text:'PMI contraction signals slowdown → bearish sentiment',     bullish:false },
+        'RETAIL':    { text:'Retail sales reflect consumer strength → mixed for crypto',bullish:null  },
+        'INFLATION': { text:'Inflation data directly impacts Fed rate expectations',    bullish:false },
+      };
+      function getCryptoImpact(title) {
+        const u = (title||'').toUpperCase();
+        for (const [k,v] of Object.entries(IMAP)) { if (u.includes(k)) return v; }
+        return { text:'Macro event may impact risk assets including crypto', bullish:null };
+      }
+      function formatEvent(e, i) {
+        const cur       = e.currency || 'USD';
+        const ci        = getCryptoImpact(e.title);
+        const eventDate = new Date(e.date);
+        const dateStr   = eventDate.toLocaleDateString('en-US',{ weekday:'short', month:'short', day:'numeric', year:'numeric', timeZone:'America/New_York' });
+        const timeStr   = eventDate.toLocaleTimeString('en-US',{ hour:'2-digit', minute:'2-digit', timeZoneName:'short', timeZone:'America/New_York' });
+        const hasActual = e.actual !== undefined && e.actual !== null && e.actual !== '';
+        return {
+          id: i+1, event: e.title||'Unknown Event',
+          country: COUNTRIES[cur]||cur, flag: FLAGS[cur]||'🌍',
+          date: dateStr, time: timeStr,
+          isoDate: eventDate.toISOString(),
+          impact: e.impact==='High'?'HIGH':'MEDIUM',
+          forecast: e.forecast||'N/A', previous: e.previous||'N/A',
+          actual: hasActual ? e.actual : null, isPast: hasActual,
+          cryptoImpact: ci.text, bullishForCrypto: ci.bullish,
         };
-        function getCryptoImpact(title) {
-          const u = (title||'').toUpperCase();
-          for (const [k,v] of Object.entries(IMAP)) { if (u.includes(k)) return v; }
-          return { text:'Macro event may impact risk assets including crypto', bullish:null };
-        }
+      }
+      try {
+        const [r1, r2] = await Promise.allSettled([
+          fetch('https://nfs.faireconomy.media/ff_calendar_thisweek.json',  { headers:{ 'User-Agent':'Mozilla/5.0 (compatible)' } }).then(r => r.ok ? r.json() : []),
+          fetch('https://nfs.faireconomy.media/ff_calendar_nextweek.json',  { headers:{ 'User-Agent':'Mozilla/5.0 (compatible)' } }).then(r => r.ok ? r.json() : []),
+        ]);
+        let raw = [];
+        if (r1.status==='fulfilled' && Array.isArray(r1.value)) raw = raw.concat(r1.value);
+        if (r2.status==='fulfilled' && Array.isArray(r2.value)) raw = raw.concat(r2.value);
+        if (!raw.length) throw new Error('Forex Factory unreachable');
+        const now = Date.now();
         const events = raw
-          .filter(e => e.impact === 'High' || e.impact === 'Medium')
-          .slice(0, 12)
-          .map((e, i) => {
-            const cur = e.currency || 'USD';
-            const ci  = getCryptoImpact(e.title);
-            let timeStr = '—'; let dateStr = '—';
-            try {
-              const d = new Date(e.date);
-              dateStr = d.toLocaleDateString('en-US',{ weekday:'short', month:'short', day:'numeric' });
-              timeStr = d.toLocaleTimeString('en-US',{ hour:'2-digit', minute:'2-digit', timeZoneName:'short' });
-            } catch(_){}
-            return {
-              id:i+1, event:e.title||'Unknown', country:COUNTRIES[cur]||cur,
-              flag:FLAGS[cur]||'🌍', date:dateStr, time:timeStr,
-              impact:e.impact==='High'?'HIGH':'MEDIUM',
-              forecast:e.forecast||'N/A', previous:e.previous||'N/A', actual:e.actual||null,
-              cryptoImpact:ci.text, bullishForCrypto:ci.bullish,
-            };
-          });
-        return res.status(200).json({ success: true, data: events });
+          .filter(e => e.impact==='High' || e.impact==='Medium')
+          .sort((a,b) => new Date(a.date)-new Date(b.date))
+          .filter(e => new Date(e.date).getTime() >= now - 7200000)
+          .slice(0, 20)
+          .map((e,i) => formatEvent(e,i));
+        return res.status(200).json({ success:true, data:events, serverTime:new Date().toISOString() });
       } catch(e) {
-        return res.status(500).json({ success: false, message: e.message });
+        return res.status(500).json({ success:false, message:e.message });
       }
     }
 

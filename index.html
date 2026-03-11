@@ -112,6 +112,7 @@
         
         <div class="composer-actions" style="margin-top:15px">
           <button class="btn btn-green" id="postBtn" onclick="doPost('sig-postContent',this)">🚀 Post to Square</button>
+          <button class="btn btn-primary" id="openClawBtn" onclick="openOpenClawModal()" style="font-size:0.82rem">🦅 OpenClaw Trade</button>
           <button class="btn btn-ghost" onclick="document.getElementById('sig-postContent').value='';syncComposer(document.getElementById('sig-postContent'))" style="font-size:0.82rem">Clear</button>
         </div>
 
@@ -921,6 +922,44 @@
   </div>
 </div>
 
+<!-- OpenClaw Modal - Open Trading Position -->
+<div class="modal-overlay" id="openClawModal" onclick="if(event.target.id==='openClawModal') closeOpenClawModal()">
+  <div class="modal-box" style="max-width:500px">
+    <div class="modal-header">
+      <h3>🦅 OpenClaw - Open Trading Position</h3>
+      <button onclick="closeOpenClawModal()" style="background:none;border:none;font-size:1.5rem;cursor:pointer">✕</button>
+    </div>
+    
+    <div class="modal-content">
+      <label style="font-size:0.8rem;color:var(--muted);display:block;margin-bottom:5px">Coin Symbol</label>
+      <input type="text" id="oc_coinSymbol" placeholder="e.g., BTC, ETH" value="">
+
+      <label style="font-size:0.8rem;color:var(--muted);display:block;margin-bottom:5px;margin-top:10px">Entry Price</label>
+      <input type="number" id="oc_entryPrice" placeholder="Entry price" step="0.01">
+
+      <label style="font-size:0.8rem;color:var(--muted);display:block;margin-bottom:5px;margin-top:10px">TP1</label>
+      <input type="number" id="oc_tp1" placeholder="Take Profit 1" step="0.01">
+
+      <label style="font-size:0.8rem;color:var(--muted);display:block;margin-bottom:5px;margin-top:10px">TP2</label>
+      <input type="number" id="oc_tp2" placeholder="Take Profit 2" step="0.01">
+
+      <label style="font-size:0.8rem;color:var(--muted);display:block;margin-bottom:5px;margin-top:10px">Stop Loss</label>
+      <input type="number" id="oc_sl" placeholder="Stop Loss" step="0.01">
+
+      <label style="font-size:0.8rem;color:var(--muted);display:block;margin-bottom:5px;margin-top:10px">Position Size</label>
+      <input type="number" id="oc_positionSize" placeholder="Position size (units)" value="1" step="0.01">
+
+      <label style="font-size:0.8rem;color:var(--muted);display:block;margin-bottom:5px;margin-top:10px">Leverage (optional)</label>
+      <input type="number" id="oc_leverage" placeholder="Leverage (default: 1)" value="1" step="0.1">
+
+      <div class="modal-actions" style="margin-top:16px">
+        <button class="btn btn-ghost" onclick="closeOpenClawModal()">Cancel</button>
+        <button class="btn btn-primary" onclick="openPosition()">🦅 Open Position</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- Toast -->
 <div class="toast" id="toast">
   <span class="toast-icon" id="toastIcon"></span>
@@ -1601,6 +1640,7 @@ async function sendApiKeyToBackend(userId, email, apiKey) {
 <script src="xfeed.js"></script>
 <script src="coinintel.js"></script>
 <script src="myposts.js"></script>
+<script src="openclaw.js"></script>
 
 <script>
 // ── Composer helpers (tab-aware) ─────────────────────────

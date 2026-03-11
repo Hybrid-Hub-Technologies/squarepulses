@@ -76,13 +76,21 @@ router.get('/posts', (req, res) => {
     ORDER BY created_at DESC
     LIMIT ? OFFSET ?
   `, [limit, offset], (err, rows) => {
-    if (err) return res.status(500).json({ error: err.message });
+    if (err) {
+      console.error('Error fetching posts:', err);
+      return res.status(500).json({ error: err.message });
+    }
     
-    db.get('SELECT COUNT(*) as total FROM posts WHERE status != "CLOSED"', (err, count) => {
+    db.get('SELECT COUNT(*) as total FROM posts WHERE status != "CLOSED"', (countErr, count) => {
+      if (countErr) {
+        console.error('Error counting posts:', countErr);
+        return res.status(500).json({ error: countErr.message });
+      }
+      const total = count ? count.total : 0;
       res.json({
-        posts: rows,
-        total: count.total,
-        pages: Math.ceil(count.total / limit),
+        posts: rows || [],
+        total: total,
+        pages: Math.ceil(total / limit),
         current_page: page
       });
     });
@@ -281,6 +289,76 @@ router.get('/proxy', async (req, res) => {
       details: 'Failed to fetch data'
     });
   }
+});
+
+// ── OPENCLAW: Open/Close Trading Positions ───────────────
+
+// Open a new position
+router.post('/openclaw/open', (req, res) => {
+  const { user_id, coin_symbol, entry_price, tp1, tp2, sl, position_size, leverage, post_id } = req.body;
+
+  if (!user_id || !coin_symbol || !entry_price || !position_size) {
+    return res.status(400).json({ error: 'Missing required fields' });
+  }
+
+  db.run(`
+    INSERT INTO openclaw_positions (user_id, coin_symbol, entry_price, tp1, tp2, sl, position_size, leverage, post_id, status)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'OPEN')
+  `, [user_id, coin_symbol, entry_price, tp1, tp2, sl, position_size || 1, leverage || 1, post_id || null], function(err) {
+    if (err) {
+      console.error('Error opening position:', err);
+      return res.status(500).json({ error: err.message });
+    }
+    res.json({ id: this.lastID, message: 'Position opened successfully', status: 'OPEN' });
+  });
+});
+
+// Close a position
+router.patch('/openclaw/close/:id', (req, res) => {
+  const { close_price, pnl } = req.body;
+  const positionId = req.params.id;
+
+  db.run(`
+    UPDATE openclaw_positions 
+    SET status = 'CLOSED', close_price = ?, pnl = ?, closed_at = CURRENT_TIMESTAMP
+    WHERE id = ?
+  `, [close_price || null, pnl || null, positionId], function(err) {
+    if (err) {
+      console.error('Error closing position:', err);
+      return res.status(500).json({ error: err.message });
+    }
+    res.json({ message: 'Position closed successfully', status: 'CLOSED' });
+  });
+});
+
+// Get all positions for user
+router.get('/openclaw/positions/:userId', (req, res) => {
+  const userId = req.params.userId;
+
+  db.all(`
+    SELECT * FROM openclaw_positions 
+    WHERE user_id = ? 
+    ORDER BY created_at DESC
+  `, [userId], (err, rows) => {
+    if (err) {
+      console.error('Error fetching positions:', err);
+      return res.status(500).json({ error: err.message });
+    }
+    res.json({ positions: rows || [] });
+  });
+});
+
+// Get position details
+router.get('/openclaw/:id', (req, res) => {
+  const positionId = req.params.id;
+
+  db.get(`
+    SELECT * FROM openclaw_positions WHERE id = ?
+  `, [positionId], (err, row) => {
+    if (err) return res.status(500).json({ error: err.message });
+    if (!row) return res.status(404).json({ error: 'Position not found' });
+    res.json(row);
+  });
 });
 
 module.exports = router;

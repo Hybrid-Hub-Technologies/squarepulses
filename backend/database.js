@@ -140,6 +140,30 @@ db.serialize(() => {
       FOREIGN KEY(user_id) REFERENCES users(id)
     )
   `);
+
+  // OpenClaw - Trading Positions
+  db.run(`
+    CREATE TABLE IF NOT EXISTS openclaw_positions (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id TEXT NOT NULL,
+      post_id INTEGER,
+      coin_symbol TEXT NOT NULL,
+      entry_price REAL NOT NULL,
+      tp1 REAL,
+      tp2 REAL,
+      sl REAL,
+      close_price REAL,
+      position_size REAL DEFAULT 1,
+      leverage REAL DEFAULT 1,
+      pnl REAL,
+      pnl_percent REAL,
+      status TEXT DEFAULT 'OPEN',
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      closed_at DATETIME,
+      FOREIGN KEY(user_id) REFERENCES users(id),
+      FOREIGN KEY(post_id) REFERENCES posts(id)
+    )
+  `);
 });
 
 module.exports = db;

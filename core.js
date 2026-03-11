@@ -327,6 +327,9 @@ function playAlertSound(isPump) {
       osc.connect(gain); gain.connect(ctx.destination);
       osc.frequency.value = freq; osc.type = 'sine';
       gain.gain.setValueAtTime(0.3, ctx.currentTime + i*0.15);
+      gain.gain.setValueAtTime(0, ctx.currentTime + i*0.15 + 0.1);
+      osc.start(ctx.currentTime + i*0.15);
+      osc.stop(ctx.currentTime + i*0.15 + 0.1);
       gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + i*0.15 + 0.4);
       osc.start(ctx.currentTime + i*0.15);
       osc.stop(ctx.currentTime  + i*0.15 + 0.4);

@@ -7,26 +7,41 @@ const AIAssistant = {
   isOpen: false,
   tasks: [],
   messages: [],
+  
   init() {
-    this.loadTasks();
     this.setupEventListeners();
+    this.loadTasks();
+    console.log('🤖 AI Assistant Initialized');
   },
+  
   setupEventListeners() {
-    // Chat input
-    const chatInput = document.getElementById('ai-chatInput');
-    if (chatInput) {
-      chatInput.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter' && !e.shiftKey) {
-          e.preventDefault();
-          this.sendMessage();
-        }
-      });
-    }
+    // Setup chat input with timeout to ensure element exists
+    setTimeout(() => {
+      const chatInput = document.getElementById('ai-chatInput');
+      const sendBtn = document.querySelector('[onclick="AIAssistant.sendMessage()"]');
+      
+      if (chatInput) {
+        chatInput.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            this.sendMessage();
+          }
+        });
+      }
+      
+      if (sendBtn) {
+        sendBtn.addEventListener('click', () => this.sendMessage());
+      }
+    }, 100);
   },
+  
   async sendMessage() {
     const input = document.getElementById('ai-chatInput');
     const message = input.value.trim();
-    if (!message) return;
+    if (!message) {
+      console.warn('Empty message');
+      return;
+    }
 
     // Add user message to chat
     this.addChatMessage(message, 'user');
@@ -34,7 +49,7 @@ const AIAssistant = {
 
     // Parse and execute command
     const response = await this.parseAndExecuteCommand(message);
-    this.addChatMessage(response, 'bot');
+    setTimeout(() => this.addChatMessage(response, 'bot'), 300);
   },
   addChatMessage(text, sender) {
     const chatBox = document.getElementById('ai-chatBox');
@@ -468,5 +483,6 @@ const AIAssistant = {
 
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', () => {
-  AIAssistant.init();
+  // Don't auto-init, only init when tab is opened
+  console.log('🤖 AI Assistant ready to initialize');
 });

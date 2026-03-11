@@ -2014,7 +2014,11 @@ function switchMainTab(tabName, btn) {
     pane.classList.add('active');
     SP.activeMainTab = tabName;
     // Load content for tab if needed
-    if (tabName === 'news') loadNewsTab();
+    if (tabName === 'assistant') {
+      AIAssistant.init();
+      AIAssistant.updateTaskDashboard();
+    }
+    else if (tabName === 'news') loadNewsTab();
     else if (tabName === 'forex') loadForexTab();
     else if (tabName === 'whales') loadWhalesTab();
     else if (tabName === 'xfeed') loadXfeedTab();

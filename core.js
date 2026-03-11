@@ -36,17 +36,7 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // ── Main Tab Switching ────────────────────────────────────
-function switchMainTab(name, btn) {
-  document.querySelectorAll('.main-tab-btn').forEach(b => b.classList.remove('active'));
-  document.querySelectorAll('.main-tab-pane').forEach(p => p.classList.remove('active'));
-  btn.classList.add('active');
-  const pane = document.getElementById('mt-' + name);
-  if (pane) pane.classList.add('active');
-  SP.activeMainTab = name;
-
-  // Lazy load tab content on first open
-  if (name === 'news'      && !window._newsLoaded)     { loadNewsTab();     window._newsLoaded = true; }
-  if (name === 'forex'     && !window._forexLoaded)    { loadForexTab();    window._forexLoaded = true; }
+// NOTE: Full implementation is in index.html - don't duplicate here
   if (name === 'whales'    && !window._whalesLoaded)   { loadWhalesTab();   window._whalesLoaded = true; }
   if (name === 'xfeed'     && !window._xfeedLoaded)    { loadXFeedTab();    window._xfeedLoaded = true; }
   if (name === 'coinintel' && !window._intelLoaded)    { loadCoinIntelTab(); window._intelLoaded = true; }

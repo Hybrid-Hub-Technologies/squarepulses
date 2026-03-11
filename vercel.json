@@ -1,1 +1,9 @@
-{}
+{
+  "buildCommand": "echo 'Frontend only - static files'",
+  "outputDirectory": ".",
+  "regions": ["iad1"],
+  "env": {
+    "BACKEND_URL": "@backend_url"
+  }
+}
+

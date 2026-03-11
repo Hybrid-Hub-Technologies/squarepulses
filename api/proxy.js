@@ -448,16 +448,45 @@ Return ONLY the JSON array.` }
 
   // ── POST → Binance Square ─────────────────────────────────
   if (req.method !== 'POST') return res.status(405).json({ code:'ERR', message:'Method not allowed' });
-  const { apiKey, content } = req.body || {};
+  
+  // Handle both JSON and FormData
+  let apiKey, content, imageData;
+  
+  // Check if it's JSON
+  if (req.headers['content-type']?.includes('application/json')) {
+    ({ apiKey, content, imageData } = req.body || {});
+  } 
+  // Check if it's FormData (multipart)
+  else if (req.headers['content-type']?.includes('multipart/form-data')) {
+    // Parse FormData (simplified - in Vercel, use busboy or similar)
+    // For now, extract from request if available
+    apiKey = req.body?.apiKey;
+    content = req.body?.content;
+    imageData = req.body?.imageData; // base64 encoded image
+  }
+  
   if (!apiKey)  return res.status(400).json({ code:'ERR', message:'API Key missing' });
   if (!content) return res.status(400).json({ code:'ERR', message:'Content empty' });
+  
   try {
+    // Build request body - support both text-only and with images
+    let bodyObj = { bodyTextOnly: content };
+    
+    // If image provided, add it to the request
+    if (imageData) {
+      // Try sending image with the content
+      bodyObj = {
+        bodyTextOnly: content,
+        image: imageData // Binance may accept base64 here
+      };
+    }
+    
     const response = await fetch(
       'https://www.binance.com/bapi/composite/v1/public/pgc/openApi/content/add',
       {
         method:'POST',
         headers:{ 'Content-Type':'application/json', 'X-Square-OpenAPI-Key':apiKey, 'clienttype':'binanceSkill' },
-        body: JSON.stringify({ bodyTextOnly: content }),
+        body: JSON.stringify(bodyObj),
       }
     );
     const data = await response.json();

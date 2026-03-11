@@ -127,26 +127,51 @@ function updateApiKeyBtn() {
 }
 
 // ── Post to Square (via proxy.php) ───────────────────────
-async function postToSquare(content, btnEl) {
+async function postToSquare(content, btnEl, imageInputId) {
   if (!content?.trim()) { showToast('info','📝','Write something first'); return; }
   if (!SP.apiKey)        { showToast('error','🔑','Set your API Key first'); openApiModal(); return; }
 
   if (btnEl) { btnEl.disabled = true; btnEl.innerHTML = '<span class="spinner"></span> Posting...'; }
 
   try {
+    // Collect image if provided
+    let imageData = null;
+    if (imageInputId) {
+      const imageInput = document.getElementById(imageInputId);
+      if (imageInput && imageInput.files && imageInput.files[0]) {
+        const file = imageInput.files[0];
+        const reader = new FileReader();
+        imageData = await new Promise((resolve) => {
+          reader.onload = (e) => resolve(e.target.result);
+          reader.readAsDataURL(file);
+        });
+      }
+    }
+
+    // Build request body
+    const requestBody = { apiKey: SP.apiKey, content };
+    if (imageData) {
+      requestBody.imageData = imageData;
+    }
+
     const res  = await fetch('proxy.php', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ apiKey: SP.apiKey, content })
+      body: JSON.stringify(requestBody)
     });
     const data = await res.json();
 
     if (data.code === '000000') {
       const postId = data.data?.id;
       const url = postId ? `https://www.binance.com/square/post/${postId}` : null;
-      showToast('success','🚀', url
-        ? `Posted! <a href="${url}" target="_blank" style="color:var(--accent)">View →</a>`
-        : 'Posted to Binance Square!');
+      
+      // Delay success message by 3-5 seconds and add image indicator
+      setTimeout(() => {
+        showToast('success','🚀', url
+          ? `✅ Posted ${imageData ? '🖼️' : ''}! <a href="${url}" target="_blank" style="color:var(--accent);text-decoration:underline;cursor:pointer;font-weight:bold;">📖 VIEW POST</a>`
+          : '✅ Posted to Binance Square!');
+      }, 3000);
+      
       return { success: true, url };
     } else {
       const msg = POST_ERRORS[data.code] || `Error: ${data.code}`;

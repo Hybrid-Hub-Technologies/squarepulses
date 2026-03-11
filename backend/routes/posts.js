@@ -49,18 +49,18 @@ router.get('/users/:userId/api-key', (req, res) => {
 
 // ── CREATE: Save new post
 router.post('/posts', (req, res) => {
-  const { user_id, coin_name, coin_symbol, entry_price, tp1, tp2, sl, post_content, status } = req.body;
+  const { user_id, coin_name, coin_symbol, entry_price, tp1, tp2, sl, post_content, post_url, status } = req.body;
 
   if (!user_id || !coin_symbol || !entry_price || !tp1 || !tp2 || !sl) {
     return res.status(400).json({ error: 'Missing required fields' });
   }
 
   db.run(`
-    INSERT INTO posts (user_id, coin_name, coin_symbol, entry_price, tp1, tp2, sl, post_content, status)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `, [user_id, coin_name, coin_symbol, entry_price, tp1, tp2, sl, post_content, status || 'ACTIVE'], function(err) {
+    INSERT INTO posts (user_id, coin_name, coin_symbol, entry_price, tp1, tp2, sl, post_content, post_url, status)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `, [user_id, coin_name, coin_symbol, entry_price, tp1, tp2, sl, post_content, post_url || null, status || 'ACTIVE'], function(err) {
     if (err) return res.status(500).json({ error: err.message });
-    res.json({ id: this.lastID, message: 'Post saved successfully' });
+    res.json({ id: this.lastID, message: 'Post saved successfully', post_url });
   });
 });
 

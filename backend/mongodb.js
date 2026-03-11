@@ -10,6 +10,7 @@ const postsSchema = new mongoose.Schema({
   tp2: Number,
   sl: Number,
   post_content: String,
+  post_url: String,
   status: { type: String, default: 'ACTIVE' },
   tp1_hit_at: Date,
   tp2_hit_at: Date,

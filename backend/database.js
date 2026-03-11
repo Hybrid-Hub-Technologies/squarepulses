@@ -21,6 +21,7 @@ db.serialize(() => {
       tp2 REAL NOT NULL,
       sl REAL NOT NULL,
       post_content TEXT,
+      post_url TEXT,
       status TEXT DEFAULT 'ACTIVE',
       tp1_hit_at DATETIME,
       tp2_hit_at DATETIME,
@@ -100,13 +101,17 @@ db.serialize(() => {
     CREATE TABLE IF NOT EXISTS bot_strategies (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       user_id TEXT NOT NULL,
-      strategy_name TEXT NOT NULL,
-      strategy_type TEXT,
-      coin_symbol TEXT,
-      investment_amount REAL,
-      risk_level TEXT,
-      status TEXT DEFAULT 'ACTIVE',
+      name TEXT NOT NULL,
+      type TEXT,
+      symbol TEXT NOT NULL,
+      entry_price REAL,
+      target_price REAL,
+      stop_loss REAL,
+      quantity REAL,
+      enabled INTEGER DEFAULT 0,
+      status TEXT DEFAULT 'PENDING',
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY(user_id) REFERENCES users(id)
     )
   `);
@@ -115,15 +120,20 @@ db.serialize(() => {
   db.run(`
     CREATE TABLE IF NOT EXISTS bot_trades (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
-      strategy_id INTEGER NOT NULL,
-      coin_symbol TEXT NOT NULL,
-      entry_price REAL NOT NULL,
-      current_price REAL,
+      user_id TEXT NOT NULL,
+      strategy_id INTEGER,
+      symbol TEXT NOT NULL,
+      side TEXT NOT NULL,
       quantity REAL NOT NULL,
-      entry_time DATETIME,
-      exit_time DATETIME,
-      profit_loss REAL,
-      status TEXT DEFAULT 'OPEN',
+      entry_price REAL,
+      exit_price REAL,
+      order_id TEXT,
+      status TEXT DEFAULT 'PENDING',
+      pnl REAL,
+      pnl_percent REAL,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      closed_at DATETIME,
+      FOREIGN KEY(user_id) REFERENCES users(id),
       FOREIGN KEY(strategy_id) REFERENCES bot_strategies(id)
     )
   `);
@@ -134,9 +144,10 @@ db.serialize(() => {
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       user_id TEXT NOT NULL,
       total_value REAL NOT NULL,
+      assets_json TEXT,
       total_pnl REAL,
       pnl_percent REAL,
-      timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+      taken_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY(user_id) REFERENCES users(id)
     )
   `);

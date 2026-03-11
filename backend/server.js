@@ -6,6 +6,7 @@ const { startMonitoring } = require('./monitoring');
 const postsRouter = require('./routes/posts');
 const portfolioRouter = require('./routes/portfolio');
 const botRouter = require('./routes/bot');
+const tasksRouter = require('./routes/tasks');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -23,6 +24,7 @@ app.get('/health', (req, res) => {
 app.use('/api', postsRouter);
 app.use('/api', portfolioRouter);
 app.use('/api', botRouter);
+app.use('/api', tasksRouter);
 
 // ── Start monitoring when server starts ──────────────────
 app.listen(PORT, () => {

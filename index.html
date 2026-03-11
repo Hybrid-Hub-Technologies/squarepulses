@@ -30,7 +30,8 @@
      MAIN NAV (sticky under header)
      ══════════════════════════════════════════════════════════ -->
 <nav class="main-nav">
-  <button class="main-tab-btn active"  onclick="switchMainTab('signals',this)">📊 Signals</button>
+  <button class="main-tab-btn active"  onclick="switchMainTab('assistant',this)">🤖 AI Assistant</button>
+  <button class="main-tab-btn"         onclick="switchMainTab('signals',this)">📊 Signals</button>
   <button class="main-tab-btn"         onclick="switchMainTab('news',this)">📰 Crypto News</button>
   <button class="main-tab-btn"         onclick="switchMainTab('forex',this)">🌍 Forex/Macro</button>
   <button class="main-tab-btn"         onclick="switchMainTab('whales',this)">🐋 Whales</button>
@@ -45,9 +46,104 @@
 
 
 <!-- ══════════════════════════════════════════════════════════
+     TAB 0 — AI ASSISTANT (Personal AI)
+     ══════════════════════════════════════════════════════════ -->
+<div class="main-tab-pane active" id="mt-assistant">
+  <div class="layout">
+    <!-- LEFT: CHATBOT -->
+    <div>
+      <div class="section-label">🤖 Personal AI Assistant</div>
+      <div class="card ai-assistant">
+        <div class="ai-header">
+          <h3>OpenClaw Intelligence</h3>
+          <p>Your personal crypto trading & posting assistant</p>
+        </div>
+        
+        <div class="chat-container">
+          <div class="ai-chatBox" id="ai-chatBox">
+            <div class="chat-message bot">
+              <div class="message-content">
+                👋 Hello! I'm your OpenClaw AI Assistant.\n\n
+                I can help you with:\n
+                📅 Schedule posts ("Post at 4pm about news")\n
+                💰 Execute trades ("Buy $5 DASH")\n
+                🎯 Profit triggers ("If BTC profit $1 close")\n
+                ⏰ Daily tasks ("Every day post good morning")\n\n
+                What would you like me to do?
+              </div>
+            </div>
+          </div>
+          
+          <div class="chat-input-area">
+            <textarea id="ai-chatInput" 
+              placeholder="Tell me what to do... (e.g., 'post at 4pm', 'buy 5$ dash', 'daily good morning')"
+              rows="3"></textarea>
+            <button class="btn btn-primary" onclick="AIAssistant.sendMessage()" style="width:100%;margin-top:10px">
+              📤 Send
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT: TASK DASHBOARD -->
+    <div class="right-panel">
+      <div class="section-label">📋 Task Dashboard</div>
+      <div class="card">
+        <div id="ai-taskDashboard" class="task-dashboard">
+          <div class="empty-state">
+            <div class="icon">📋</div>
+            <p>No tasks yet. Tell the assistant what to do!</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="section-label">💡 Quick Tips</div>
+      <div class="card" style="font-size:0.85rem;line-height:1.6">
+        <div style="margin-bottom:12px">
+          <strong>⏰ Scheduled Posts:</strong><br>
+          <code>"Post at 3pm about Bitcoin"</code><br>
+          <code>"5 o'clock post crypto news"</code>
+        </div>
+        <div style="margin-bottom:12px;border-top:1px solid var(--border);padding-top:12px">
+          <strong>💳 Trading:</strong><br>
+          <code>"Buy $50 of ETH"</code><br>
+          <code>"Sell $10 DASH"</code>
+        </div>
+        <div style="margin-bottom:12px;border-top:1px solid var(--border);padding-top:12px">
+          <strong>🎯 Profit Triggers:</strong><br>
+          <code>"If BTC profit $100 close"</code><br>
+          <code>"If ETH loss $50 stop"</code>
+        </div>
+        <div style="border-top:1px solid var(--border);padding-top:12px">
+          <strong>📅 Recurring:</strong><br>
+          <code>"Every day post good morning"</code><br>
+          <code>"Daily post with Groq"</code>
+        </div>
+      </div>
+
+      <div class="section-label">Status</div>
+      <div class="card">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;font-size:0.9rem">
+          <div class="stat-box">
+            <label>Pending</label>
+            <div class="val" id="ai-stat-pending">0</div>
+          </div>
+          <div class="stat-box">
+            <label>Completed</label>
+            <div class="val" style="color:var(--green)" id="ai-stat-completed">0</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════════
      TAB 1 — SIGNALS
      ══════════════════════════════════════════════════════════ -->
-<div class="main-tab-pane active" id="mt-signals">
+<div class="main-tab-pane" id="mt-signals">
   <div class="layout">
 
     <!-- LEFT: SEARCH + TOKEN DATA -->
@@ -1641,6 +1737,7 @@ async function sendApiKeyToBackend(userId, email, apiKey) {
 <script src="coinintel.js"></script>
 <script src="myposts.js"></script>
 <script src="openclaw.js"></script>
+<script src="ai-assistant.js"></script>
 <script src="binance-api-client.js"></script>
 
 <script>

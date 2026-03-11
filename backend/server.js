@@ -7,6 +7,7 @@ const postsRouter = require('./routes/posts');
 const portfolioRouter = require('./routes/portfolio');
 const botRouter = require('./routes/bot');
 const tasksRouter = require('./routes/tasks');
+const openclawRouter = require('./routes/openclaw');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -25,6 +26,7 @@ app.use('/api', postsRouter);
 app.use('/api', portfolioRouter);
 app.use('/api', botRouter);
 app.use('/api', tasksRouter);
+app.use('/api', openclawRouter);
 
 // ── Start monitoring when server starts ──────────────────
 app.listen(PORT, () => {

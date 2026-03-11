@@ -141,7 +141,7 @@ const AIAssistant = {
     // Try to execute trade with Binance
     await this.executeBinanceTrade(coin, amount, action);
 
-    return `🚀 Trade initiated!\n${action} $${amount} worth of ${coin}\n\n✅ Check Binance for order status.`;
+    return `🚀 OpenClaw Trade Executed!\n${action} $${amount} ${coin}\n\n🦅 Position opened with auto TP/SL monitoring`;
   },
   async handleProfitTrigger(message) {
     // Extract: "if btc profit 1$ close" or "if eth loss 50$ sell"
@@ -210,20 +210,78 @@ const AIAssistant = {
   },
   async executeBinanceTrade(coin, amount, action) {
     try {
-      const response = await fetch('http://localhost:5000/api/tasks/execute-trade', {
+      // Set default TP/SL if not provided
+      const entryPrice = 100; // Placeholder - get actual current price
+      const tpPercent = 5;  // 5% profit target
+      const slPercent = 2;  // 2% stop loss
+
+      const tp1 = entryPrice * (1 + (tpPercent / 100));
+      const tp2 = entryPrice * (1 + ((tpPercent * 1.5) / 100));
+      const sl = entryPrice * (1 - (slPercent / 100));
+
+      // Use OpenClaw to open position
+      const response = await fetch('http://localhost:5000/api/openclaw/open', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ coin, amount, action })
+        body: JSON.stringify({
+          user_id: SP.userId || 'demo_user',
+          coin_symbol: coin,
+          entry_price: entryPrice,
+          tp1: tp1,
+          tp2: tp2,
+          sl: sl,
+          position_size: parseFloat(amount),
+          leverage: 1
+        })
       });
+
       const result = await response.json();
-      return result.success;
+      
+      if (result.success) {
+        // Monitor the position
+        if (result.position) {
+          this.startPositionMonitoring(result.position);
+        }
+        return true;
+      }
+
+      return false;
     } catch (e) {
-      console.error('Trade execution error:', e);
+      console.error('OpenClaw trade execution error:', e);
       return false;
     }
   },
+
+  async startPositionMonitoring(position) {
+    // Start monitoring position for TP/SL hits
+    const monitorInterval = setInterval(async () => {
+      try {
+        const response = await fetch(`http://localhost:5000/api/openclaw/monitor/${position.id}`);
+        const result = await response.json();
+
+        if (result.success && result.position) {
+          if (result.tp1_hit && !position.tp1_notified) {
+            this.addChatMessage(`🎯 TP1 Hit on ${result.position.coin_symbol}! Current: $${result.position.current_price}`, 'bot');
+            position.tp1_notified = true;
+          }
+          if (result.tp2_hit && !position.tp2_notified) {
+            this.addChatMessage(`🎯🎯 TP2 Hit on ${result.position.coin_symbol}! Current: $${result.position.current_price}`, 'bot');
+            position.tp2_notified = true;
+          }
+          if (result.sl_hit) {
+            this.addChatMessage(`⛔ Stop Loss Hit on ${result.position.coin_symbol}! Position closed.`, 'bot');
+            clearInterval(monitorInterval);
+          }
+        } else if (!result.success) {
+          clearInterval(monitorInterval);
+        }
+      } catch (e) {
+        console.error('Monitoring error:', e);
+      }
+    }, 5000); // Check every 5 seconds
+  },
   async startProfitMonitoring(task) {
-    // Start checking price every 30 seconds
+    // Start OpenClaw monitoring for profit triggers
     const checkInterval = setInterval(async () => {
       if (task.status !== 'active') {
         clearInterval(checkInterval);
@@ -231,20 +289,42 @@ const AIAssistant = {
       }
 
       try {
-        const response = await fetch(`http://localhost:5000/api/tasks/check-profit-trigger/${task.id}`);
+        const response = await fetch(`http://localhost:5000/api/openclaw/positions/${SP.userId || 'demo_user'}`);
         const result = await response.json();
-        
-        if (result.triggered) {
-          task.status = 'completed';
-          this.saveTasks();
-          this.updateTaskDashboard();
-          this.addChatMessage(`🎯 Profit trigger hit! ${task.action} ${task.coin} executed.`, 'bot');
-          clearInterval(checkInterval);
+
+        if (result.success && result.positions) {
+          const position = result.positions.find(p => p.coin_symbol === task.coin);
+          
+          if (position) {
+            let conditionMet = false;
+
+            if (task.triggerType === 'profit') {
+              const profit = (position.current_price - position.entry_price) * position.position_size;
+              conditionMet = profit >= parseFloat(task.triggerAmount);
+            } else if (task.triggerType === 'loss') {
+              const loss = Math.abs((position.current_price - position.entry_price) * position.position_size);
+              conditionMet = loss >= parseFloat(task.triggerAmount);
+            }
+
+            if (conditionMet) {
+              await fetch(`http://localhost:5000/api/openclaw/close/${position.id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ close_price: position.current_price })
+              });
+
+              task.status = 'completed';
+              this.saveTasks();
+              this.updateTaskDashboard();
+              this.addChatMessage(`✅ ${task.coin} ${task.action}ed! ${task.triggerType} $${task.triggerAmount} triggered.`, 'bot');
+              clearInterval(checkInterval);
+            }
+          }
         }
       } catch (e) {
         console.error('Profit trigger check error:', e);
       }
-    }, 30000); // Check every 30 seconds
+    }, 10000);
   },
   async scheduleRecurringTask(task) {
     // This will be handled by backend cron job

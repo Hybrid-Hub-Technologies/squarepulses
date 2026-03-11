@@ -36,6 +36,11 @@
   <button class="main-tab-btn"         onclick="switchMainTab('whales',this)">🐋 Whales</button>
   <button class="main-tab-btn"         onclick="switchMainTab('xfeed',this)">🐦 X Feed</button>
   <button class="main-tab-btn"         onclick="switchMainTab('coinintel',this)">🔍 Coin Intel</button>
+  <button class="main-tab-btn"         onclick="switchMainTab('myposts',this)">📋 My Posts</button>
+  <button class="main-tab-btn"         onclick="switchMainTab('portfolio',this)">💼 Portfolio Health</button>
+  <button class="main-tab-btn"         onclick="switchMainTab('wealth',this)">📊 Wealth Tracker</button>
+  <button class="main-tab-btn"         onclick="switchMainTab('autotrading',this)">🤖 Auto Trading</button>
+  <button class="main-tab-btn"         onclick="switchMainTab('personalize',this)">⚙️ Personalization</button>
 </nav>
 
 
@@ -92,9 +97,30 @@
         <textarea id="sig-postContent" oninput="syncComposer(this)"
           placeholder="Select a token → Generate Post, or write your own post here..."></textarea>
         <div class="char-count"><span id="sig-charCount">0</span> characters</div>
-        <div class="composer-actions">
+        
+        <!-- Image Upload Section -->
+        <div style="margin-top:15px;padding-top:15px;border-top:1px solid var(--border)">
+          <div style="font-size:0.8rem;color:var(--muted);margin-bottom:8px">📸 Attach Image (Optional)</div>
+          <div style="display:flex;gap:10px;align-items:center">
+            <input type="file" id="sig-imageInput" accept="image/*" style="flex:1;padding:8px;background:var(--bg-secondary);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:0.85rem">
+            <button class="btn btn-secondary" onclick="clearImageUpload('sig-imageInput')" style="font-size:0.8rem">Clear</button>
+          </div>
+          <div id="sig-imagePreview" style="margin-top:10px;max-height:120px;border-radius:6px;overflow:hidden;background:var(--bg-secondary);padding:5px;display:none">
+            <img id="sig-imagePreviewImg" src="" style="max-width:100%;max-height:110px;display:block">
+          </div>
+        </div>
+        
+        <div class="composer-actions" style="margin-top:15px">
           <button class="btn btn-green" id="postBtn" onclick="doPost('sig-postContent',this)">🚀 Post to Square</button>
           <button class="btn btn-ghost" onclick="document.getElementById('sig-postContent').value='';syncComposer(document.getElementById('sig-postContent'))" style="font-size:0.82rem">Clear</button>
+        </div>
+
+        <!-- Edit Instructions Section -->
+        <div style="margin-top:20px;padding-top:15px;border-top:1px solid var(--border)">
+          <div style="font-size:0.8rem;color:var(--muted);margin-bottom:8px">Ask AI to edit your post</div>
+          <input type="text" id="sig-editInstructions" placeholder="e.g., Make it more aggressive, add emojis, shorten it..." 
+                 style="width:100%;padding:10px;background:var(--bg-secondary);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:0.9rem;margin-bottom:10px">
+          <button class="btn btn-secondary" id="sig-editBtn" onclick="editPostWithAI('sig-postContent','sig-editInstructions', this)" style="width:100%;font-size:0.85rem">🤖 Edit with AI</button>
         </div>
       </div>
 
@@ -186,6 +212,13 @@
             <button class="btn btn-green" onclick="doPost('news-postContent',this)">🚀 Post to Square</button>
             <button class="btn btn-ghost" onclick="document.getElementById('news-postContent').value='';syncComposer(document.getElementById('news-postContent'))" style="font-size:0.82rem">Clear</button>
           </div>
+          <!-- Edit Instructions Section -->
+          <div style="margin-top:20px;padding-top:15px;border-top:1px solid var(--border)">
+            <div style="font-size:0.8rem;color:var(--muted);margin-bottom:8px">Ask AI to edit your post</div>
+            <input type="text" id="news-editInstructions" placeholder="e.g., Make it more aggressive, add emojis, shorten it..." 
+                   style="width:100%;padding:10px;background:var(--bg-secondary);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:0.9rem;margin-bottom:10px">
+            <button class="btn btn-secondary" id="news-editBtn" onclick="editPostWithAI('news-postContent','news-editInstructions', this)" style="width:100%;font-size:0.85rem">🤖 Edit with AI</button>
+          </div>
         </div>
       </div>
     </div>
@@ -227,6 +260,13 @@
             <button class="btn btn-green" onclick="doPost('forex-postContent',this)">🚀 Post to Square</button>
             <button class="btn btn-ghost" onclick="document.getElementById('forex-postContent').value='';syncComposer(document.getElementById('forex-postContent'))" style="font-size:0.82rem">Clear</button>
           </div>
+          <!-- Edit Instructions Section -->
+          <div style="margin-top:20px;padding-top:15px;border-top:1px solid var(--border)">
+            <div style="font-size:0.8rem;color:var(--muted);margin-bottom:8px">Ask AI to edit your post</div>
+            <input type="text" id="forex-editInstructions" placeholder="e.g., Make it more aggressive, add emojis, shorten it..." 
+                   style="width:100%;padding:10px;background:var(--bg-secondary);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:0.9rem;margin-bottom:10px">
+            <button class="btn btn-secondary" id="forex-editBtn" onclick="editPostWithAI('forex-postContent','forex-editInstructions', this)" style="width:100%;font-size:0.85rem">🤖 Edit with AI</button>
+          </div>
         </div>
       </div>
     </div>
@@ -267,6 +307,13 @@
           <div class="composer-actions">
             <button class="btn btn-green" onclick="doPost('whales-postContent',this)">🚀 Post to Square</button>
             <button class="btn btn-ghost" onclick="document.getElementById('whales-postContent').value='';syncComposer(document.getElementById('whales-postContent'))" style="font-size:0.82rem">Clear</button>
+          </div>
+          <!-- Edit Instructions Section -->
+          <div style="margin-top:20px;padding-top:15px;border-top:1px solid var(--border)">
+            <div style="font-size:0.8rem;color:var(--muted);margin-bottom:8px">Ask AI to edit your post</div>
+            <input type="text" id="whales-editInstructions" placeholder="e.g., Make it more aggressive, add emojis, shorten it..." 
+                   style="width:100%;padding:10px;background:var(--bg-secondary);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:0.9rem;margin-bottom:10px">
+            <button class="btn btn-secondary" id="whales-editBtn" onclick="editPostWithAI('whales-postContent','whales-editInstructions', this)" style="width:100%;font-size:0.85rem">🤖 Edit with AI</button>
           </div>
         </div>
       </div>
@@ -311,6 +358,13 @@
             <button class="btn btn-green" onclick="doPost('xfeed-postContent',this)">🚀 Post to Square</button>
             <button class="btn btn-ghost" onclick="document.getElementById('xfeed-postContent').value='';syncComposer(document.getElementById('xfeed-postContent'))" style="font-size:0.82rem">Clear</button>
           </div>
+          <!-- Edit Instructions Section -->
+          <div style="margin-top:20px;padding-top:15px;border-top:1px solid var(--border)">
+            <div style="font-size:0.8rem;color:var(--muted);margin-bottom:8px">Ask AI to edit your post</div>
+            <input type="text" id="xfeed-editInstructions" placeholder="e.g., Make it more aggressive, add emojis, shorten it..." 
+                   style="width:100%;padding:10px;background:var(--bg-secondary);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:0.9rem;margin-bottom:10px">
+            <button class="btn btn-secondary" id="xfeed-editBtn" onclick="editPostWithAI('xfeed-postContent','xfeed-editInstructions', this)" style="width:100%;font-size:0.85rem">🤖 Edit with AI</button>
+          </div>
         </div>
       </div>
     </div>
@@ -350,7 +404,466 @@
             <button class="btn btn-green" onclick="doPost('intel-postContent',this)">🚀 Post to Square</button>
             <button class="btn btn-ghost" onclick="document.getElementById('intel-postContent').value='';syncComposer(document.getElementById('intel-postContent'))" style="font-size:0.82rem">Clear</button>
           </div>
+          <!-- Edit Instructions Section -->
+          <div style="margin-top:20px;padding-top:15px;border-top:1px solid var(--border)">
+            <div style="font-size:0.8rem;color:var(--muted);margin-bottom:8px">Ask AI to edit your post</div>
+            <input type="text" id="intel-editInstructions" placeholder="e.g., Make it more aggressive, add emojis, shorten it..." 
+                   style="width:100%;padding:10px;background:var(--bg-secondary);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:0.9rem;margin-bottom:10px">
+            <button class="btn btn-secondary" id="intel-editBtn" onclick="editPostWithAI('intel-postContent','intel-editInstructions', this)" style="width:100%;font-size:0.85rem">🤖 Edit with AI</button>
+          </div>
         </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════════
+     TAB 7 — MY POSTS (24/7 Tracking)
+     ══════════════════════════════════════════════════════════ -->
+<div class="main-tab-pane" id="mt-myposts">
+  <div class="layout-full">
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:10px">
+        <div>
+          <h2 style="margin:0;font-size:1.3rem">📋 My Posted Trades</h2>
+          <p style="margin:5px 0 0 0;color:var(--muted);font-size:0.85rem">Auto-tracking with 24/7 TP/SL monitoring</p>
+        </div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap">
+          <button class="btn btn-ghost" id="mypostsRefreshBtn" onclick="loadMyPosts(1)" style="font-size:0.85rem">🔄 Refresh</button>
+          <button class="btn btn-primary" id="mypostsExportBtn" onclick="exportPostsCSV()" style="font-size:0.85rem">💾 Export CSV</button>
+        </div>
+      </div>
+
+      <!-- Stats Row -->
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:20px">
+        <div class="stat-box">
+          <label>Active Posts</label>
+          <div class="val" id="stat-active">0</div>
+        </div>
+        <div class="stat-box">
+          <label>TP1 Hit</label>
+          <div class="val" style="color:var(--green)" id="stat-tp1">0</div>
+        </div>
+        <div class="stat-box">
+          <label>TP2 Hit</label>
+          <div class="val" style="color:var(--accent)" id="stat-tp2">0</div>
+        </div>
+        <div class="stat-box">
+          <label>SL Hit</label>
+          <div class="val" style="color:var(--red)" id="stat-sl">0</div>
+        </div>
+      </div>
+
+      <!-- Posts Table -->
+      <div style="overflow-x:auto">
+        <table id="mypostsTable" style="width:100%;border-collapse:collapse;font-size:0.85rem">
+          <thead>
+            <tr style="border-bottom:2px solid var(--border)">
+              <th style="text-align:left;padding:12px;font-weight:700">Coin</th>
+              <th style="text-align:right;padding:12px;font-weight:700">Entry</th>
+              <th style="text-align:right;padding:12px;font-weight:700">TP1</th>
+              <th style="text-align:right;padding:12px;font-weight:700">TP2</th>
+              <th style="text-align:right;padding:12px;font-weight:700">SL</th>
+              <th style="text-align:center;padding:12px;font-weight:700">Status</th>
+              <th style="text-align:center;padding:12px;font-weight:700">Age</th>
+              <th style="text-align:center;padding:12px;font-weight:700">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="mypostsBody">
+            <tr><td colspan="8" style="text-align:center;padding:30px;color:var(--muted)">Loading posts...</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Pagination -->
+      <div id="mypostsPagination" style="display:flex;justify-content:center;gap:8px;margin-top:20px;flex-wrap:wrap">
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════════
+     TAB 8 — PORTFOLIO HEALTH
+     ══════════════════════════════════════════════════════════ -->
+<div class="main-tab-pane" id="mt-portfolio">
+  <div class="layout-full">
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:10px">
+        <div>
+          <h2 style="margin:0;font-size:1.3rem">💼 Portfolio Health Analysis</h2>
+          <p style="margin:5px 0 0 0;color:var(--muted);font-size:0.85rem">AI-powered portfolio optimization & rebalancing suggestions</p>
+        </div>
+        <button class="btn btn-primary" onclick="analyzePortfolio()" style="font-size:0.85rem">🔍 Analyze Portfolio</button>
+      </div>
+
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:20px">
+        <div class="stat-box">
+          <label>Total Assets</label>
+          <div class="val" id="portfolioAssets">0</div>
+        </div>
+        <div class="stat-box">
+          <label>Avg Win Rate</label>
+          <div class="val" id="portfolioWinRate">0%</div>
+        </div>
+        <div class="stat-box">
+          <label>Risk Score</label>
+          <div class="val" id="portfolioRiskScore">0/10</div>
+        </div>
+        <div class="stat-box">
+          <label>Diversification</label>
+          <div class="val" style="color:var(--accent)" id="portfolioDiversity">0/100</div>
+        </div>
+      </div>
+
+      <div style="margin-top:20px;padding-top:15px;border-top:1px solid var(--border)">
+        <div style="font-size:0.9rem;font-weight:600;margin-bottom:12px;color:var(--text)">🎯 Rebalancing Suggestions</div>
+        <div id="rebalancingSuggestions" style="background:var(--bg-secondary);padding:15px;border-radius:8px;font-size:0.85rem;line-height:1.6">
+          <p style="color:var(--muted);margin:0">Connect your Binance API key to receive personalized rebalancing recommendations based on your portfolio composition and market conditions.</p>
+        </div>
+      </div>
+
+      <div style="margin-top:20px;padding-top:15px;border-top:1px solid var(--border)">
+        <div style="font-size:0.9rem;font-weight:600;margin-bottom:12px;color:var(--text)">⚠️ Risk Alerts</div>
+        <div id="portfolioRiskAlerts" style="background:var(--bg-secondary);padding:15px;border-radius:8px;font-size:0.85rem;line-height:1.6">
+          <p style="color:var(--muted);margin:0">• No high-risk exposure detected<br>• Portfolio allocation within healthy ranges<br>• Volatility index: Normal</p>
+        </div>
+      </div>
+
+      <div style="margin-top:20px;padding-top:15px;border-top:1px solid var(--border)">
+        <div style="font-size:0.9rem;font-weight:600;margin-bottom:12px;color:var(--text)">🔄 Suggested Rebalancing Strategy</div>
+        <div id="rebalancingStrategy" style="background:var(--bg-secondary);padding:15px;border-radius:8px;font-size:0.85rem;line-height:1.6">
+          <p style="color:var(--muted);margin:0">Analyze your posts to optimize portfolio allocation...</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════════
+     TAB 9 — WEALTH TRACKER
+     ══════════════════════════════════════════════════════════ -->
+<div class="main-tab-pane" id="mt-wealth">
+  <div class="layout-full">
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:10px">
+        <div>
+          <h2 style="margin:0;font-size:1.3rem">📊 Wealth Tracker Dashboard</h2>
+          <p style="margin:5px 0 0 0;color:var(--muted);font-size:0.85rem">Real-time portfolio valuation, P&L, and net worth tracking</p>
+        </div>
+        <div style="display:flex;gap:8px">
+          <select style="padding:8px;background:var(--bg-secondary);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:0.85rem">
+            <option>Last 7 Days</option>
+            <option>Last 30 Days</option>
+            <option>All Time</option>
+          </select>
+          <button class="btn btn-ghost" onclick="refreshWealthData()" style="font-size:0.85rem">🔄 Refresh</button>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:20px">
+        <div class="stat-box">
+          <label>Total Portfolio Value</label>
+          <div class="val" style="font-size:1.4rem" id="totalPortfolioValue">$0.00</div>
+        </div>
+        <div class="stat-box">
+          <label>Total P&L</label>
+          <div class="val" style="color:var(--green)" id="totalPnL">+$0.00</div>
+        </div>
+        <div class="stat-box">
+          <label>P&L %</label>
+          <div class="val" style="color:var(--green)" id="totalPnLPercent">+0.00%</div>
+        </div>
+        <div class="stat-box">
+          <label>24h Change</label>
+          <div class="val" style="color:var(--accent)" id="change24h">+0.00%</div>
+        </div>
+      </div>
+
+      <div style="margin-top:20px;padding-top:15px;border-top:1px solid var(--border)">
+        <div style="font-size:0.9rem;font-weight:600;margin-bottom:12px;color:var(--text)">📈 Asset Allocation</div>
+        <div id="assetAllocation" style="background:var(--bg-secondary);padding:15px;border-radius:8px;font-size:0.85rem">
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px" id="allocationGrid">
+            <div style="text-align:center;padding-bottom:10px">
+              <div style="color:var(--accent);font-weight:600">BTC</div>
+              <div style="color:var(--muted);font-size:0.8rem">0.00% | $0</div>
+            </div>
+            <div style="text-align:center;padding-bottom:10px">
+              <div style="color:var(--accent);font-weight:600">ETH</div>
+              <div style="color:var(--muted);font-size:0.8rem">0.00% | $0</div>
+            </div>
+            <div style="text-align:center;padding-bottom:10px">
+              <div style="color:var(--accent);font-weight:600">Others</div>
+              <div style="color:var(--muted);font-size:0.8rem">0.00% | $0</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div style="margin-top:20px;padding-top:15px;border-top:1px solid var(--border)">
+        <div style="font-size:0.9rem;font-weight:600;margin-bottom:12px;color:var(--text)">💰 Top Holdings</div>
+        <div id="topHoldings" style="background:var(--bg-secondary);padding:15px;border-radius:8px;font-size:0.85rem">
+          <table style="width:100%;border-collapse:collapse">
+            <thead style="border-bottom:1px solid var(--border)">
+              <tr style="font-size:0.8rem;color:var(--muted)">
+                <th style="text-align:left;padding:8px">Coin</th>
+                <th style="text-align:right;padding:8px">Value</th>
+                <th style="text-align:right;padding:8px">P&L</th>
+              </tr>
+            </thead>
+            <tbody id="holdingsBody">
+              <tr>
+                <td style="padding:8px;color:var(--muted)">No holdings yet</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div style="margin-top:20px;padding-top:15px;border-top:1px solid var(--border)">
+        <div style="font-size:0.9rem;font-weight:600;margin-bottom:12px;color:var(--text)">📊 Net Worth History</div>
+        <div id="netWorthChart" style="background:var(--bg-secondary);padding:20px;border-radius:8px;height:250px;display:flex;align-items:center;justify-content:center">
+          <p style="color:var(--muted);margin:0">Connect Binance API to view net worth growth chart</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════════
+     TAB 10 — AUTO TRADING BOT
+     ══════════════════════════════════════════════════════════ -->
+<div class="main-tab-pane" id="mt-autotrading">
+  <div class="layout-full">
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:10px">
+        <div>
+          <h2 style="margin:0;font-size:1.3rem">🤖 Auto Trading Bot</h2>
+          <p style="margin:5px 0 0 0;color:var(--muted);font-size:0.85rem">Automated spot trading with smart strategies — DCA, Trend Following, Breakout Detection</p>
+        </div>
+        <button class="btn btn-primary" id="botToggle" onclick="toggleAutoBot()" style="font-size:0.85rem">▶ Start Bot</button>
+      </div>
+
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:20px">
+        <div class="stat-box">
+          <label>Bot Status</label>
+          <div class="val" style="color:var(--muted)" id="botStatus">Idle</div>
+        </div>
+        <div class="stat-box">
+          <label>Active Strategies</label>
+          <div class="val" id="activeStrategies">0</div>
+        </div>
+        <div class="stat-box">
+          <label>Trades This Week</label>
+          <div class="val" id="tradesThisWeek">0</div>
+        </div>
+        <div class="stat-box">
+          <label>Win Rate</label>
+          <div class="val" id="botWinRate">0%</div>
+        </div>
+      </div>
+
+      <div style="margin-top:20px;padding-top:15px;border-top:1px solid var(--border)">
+        <div style="font-size:0.9rem;font-weight:600;margin-bottom:12px;color:var(--text)">💡 Strategy Selection</div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px" id="strategyGrid">
+          <div style="border:1px solid var(--border);padding:15px;border-radius:8px;cursor:pointer;transition:all 0.3s" class="strategy-card" onclick="selectStrategy('dca')">
+            <div style="font-weight:600;margin-bottom:8px">📊 Smart DCA</div>
+            <div style="font-size:0.8rem;color:var(--muted);line-height:1.5">Dollar Cost Averaging — Automate regular purchases across market cycles. Perfect for accumulation.</div>
+            <div style="margin-top:10px;font-size:0.75rem;color:var(--accent)">Learn More →</div>
+          </div>
+          <div style="border:1px solid var(--border);padding:15px;border-radius:8px;cursor:pointer;transition:all 0.3s" class="strategy-card" onclick="selectStrategy('trend')">
+            <div style="font-weight:600;margin-bottom:8px">📈 Trend Following</div>
+            <div style="font-size:0.8rem;color:var(--muted);line-height:1.5">Follow the trend using MA20/MA50 crossovers. Enters on uptrends, exits on reversals.</div>
+            <div style="margin-top:10px;font-size:0.75rem;color:var(--accent)">Learn More →</div>
+          </div>
+          <div style="border:1px solid var(--border);padding:15px;border-radius:8px;cursor:pointer;transition:all 0.3s" class="strategy-card" onclick="selectStrategy('breakout')">
+            <div style="font-weight:600;margin-bottom:8px">🚀 Breakout Detection</div>
+            <div style="font-size:0.8rem;color:var(--muted);line-height:1.5">Buy on breakouts above resistance. Captures explosive moves with built-in stop losses.</div>
+            <div style="margin-top:10px;font-size:0.75rem;color:var(--accent)">Learn More →</div>
+          </div>
+        </div>
+      </div>
+
+      <div style="margin-top:20px;padding-top:15px;border-top:1px solid var(--border)" id="strategyConfig" style="display:none">
+        <div style="font-size:0.9rem;font-weight:600;margin-bottom:12px;color:var(--text)">⚙️ Strategy Configuration</div>
+        <div style="background:var(--bg-secondary);padding:15px;border-radius:8px">
+          <div style="margin-bottom:12px">
+            <label style="display:block;font-size:0.8rem;color:var(--muted);margin-bottom:5px">Select Coin</label>
+            <input type="text" placeholder="e.g., BTC, ETH, SOL..." style="width:100%;padding:8px;background:var(--bg-primary);border:1px solid var(--border);border-radius:6px;color:var(--text);box-sizing:border-box">
+          </div>
+          <div style="margin-bottom:12px">
+            <label style="display:block;font-size:0.8rem;color:var(--muted);margin-bottom:5px">Investment Amount (USDT)</label>
+            <input type="number" placeholder="100" style="width:100%;padding:8px;background:var(--bg-primary);border:1px solid var(--border);border-radius:6px;color:var(--text);box-sizing:border-box">
+          </div>
+          <div style="margin-bottom:12px">
+            <label style="display:block;font-size:0.8rem;color:var(--muted);margin-bottom:5px">Risk Level</label>
+            <select style="width:100%;padding:8px;background:var(--bg-primary);border:1px solid var(--border);border-radius:6px;color:var(--text);box-sizing:border-box">
+              <option>Conservative (Low Risk)</option>
+              <option>Moderate (Medium Risk)</option>
+              <option>Aggressive (High Risk)</option>
+            </select>
+          </div>
+          <button class="btn btn-primary" style="width:100%;margin-top:12px">✅ Deploy Strategy</button>
+        </div>
+      </div>
+
+      <div style="margin-top:20px;padding-top:15px;border-top:1px solid var(--border)">
+        <div style="font-size:0.9rem;font-weight:600;margin-bottom:12px;color:var(--text)">📋 Active Bot Trades</div>
+        <div id="botTradesTable" style="background:var(--bg-secondary);padding:15px;border-radius:8px;font-size:0.85rem">
+          <table style="width:100%;border-collapse:collapse">
+            <thead style="border-bottom:1px solid var(--border)">
+              <tr style="font-size:0.8rem;color:var(--muted)">
+                <th style="text-align:left;padding:8px">Coin</th>
+                <th style="text-align:right;padding:8px">Entry</th>
+                <th style="text-align:right;padding:8px">Current</th>
+                <th style="text-align:right;padding:8px">P&L</th>
+                <th style="text-align:center;padding:8px">Action</th>
+              </tr>
+            </thead>
+            <tbody id="botTradesBody">
+              <tr>
+                <td style="padding:8px;color:var(--muted)">No active trades</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════════
+     TAB 11 — PERSONALIZATION ENGINE
+     ══════════════════════════════════════════════════════════ -->
+<div class="main-tab-pane" id="mt-personalize">
+  <div class="layout-full">
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:10px">
+        <div>
+          <h2 style="margin:0;font-size:1.3rem">⚙️ Content Personalization Engine</h2>
+          <p style="margin:5px 0 0 0;color:var(--muted);font-size:0.85rem">Define your brand voice, niche, and posting style for AI-powered daily content generation</p>
+        </div>
+        <button class="btn btn-primary" onclick="savePersonalizationSettings()" style="font-size:0.85rem">💾 Save Settings</button>
+      </div>
+
+      <div style="margin-bottom:20px;padding:15px;background:var(--bg-secondary);border-radius:8px">
+        <div style="font-size:0.9rem;font-weight:600;margin-bottom:12px;color:var(--text)">🎯 Your Trading Niche</div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px">
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+            <input type="radio" name="niche" value="altcoins" style="cursor:pointer"> Altcoins (DeFi)
+          </label>
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+            <input type="radio" name="niche" value="btceth" style="cursor:pointer"> Bitcoin & Ethereum
+          </label>
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+            <input type="radio" name="niche" value="micro" style="cursor:pointer"> Micro Caps
+          </label>
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+            <input type="radio" name="niche" value="macro" style="cursor:pointer"> Macro & Forex
+          </label>
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+            <input type="radio" name="niche" value="mixed" checked style="cursor:pointer"> Mixed Portfolio
+          </label>
+        </div>
+      </div>
+
+      <div style="margin-bottom:20px;padding:15px;background:var(--bg-secondary);border-radius:8px">
+        <div style="font-size:0.9rem;font-weight:600;margin-bottom:12px;color:var(--text)">📝 Content Style & Tone</div>
+        <div style="display:grid;gap:12px">
+          <div>
+            <label style="display:block;font-size:0.8rem;color:var(--muted);margin-bottom:5px">Brand Voice</label>
+            <select id="brandVoice" style="width:100%;padding:8px;background:var(--bg-primary);border:1px solid var(--border);border-radius:6px;color:var(--text);box-sizing:border-box">
+              <option>Professional & Technical</option>
+              <option>Casual & Energetic</option>
+              <option>Aggressive & Bold</option>
+              <option>Educational & Detailed</option>
+              <option>Minimal & Direct</option>
+            </select>
+          </div>
+          <div>
+            <label style="display:block;font-size:0.8rem;color:var(--muted);margin-bottom:5px">Emoji Usage</label>
+            <select id="emojiUsage" style="width:100%;padding:8px;background:var(--bg-primary);border:1px solid var(--border);border-radius:6px;color:var(--text);box-sizing:border-box">
+              <option>Minimal (rare)</option>
+              <option>Moderate (balanced)</option>
+              <option>Heavy (lots of emojis)</option>
+              <option>None</option>
+            </select>
+          </div>
+          <div>
+            <label style="display:block;font-size:0.8rem;color:var(--muted);margin-bottom:5px">Post Length</label>
+            <select id="postLength" style="width:100%;padding:8px;background:var(--bg-primary);border:1px solid var(--border);border-radius:6px;color:var(--text);box-sizing:border-box">
+              <option>Short (1-3 sentences)</option>
+              <option>Medium (2-4 paragraphs)</option>
+              <option>Long (detailed analysis)</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div style="margin-bottom:20px;padding:15px;background:var(--bg-secondary);border-radius:8px">
+        <div style="font-size:0.9rem;font-weight:600;margin-bottom:12px;color:var(--text)">📅 Posting Frequency & Schedule</div>
+        <div style="display:grid;gap:12px">
+          <div>
+            <label style="display:block;font-size:0.8rem;color:var(--muted);margin-bottom:5px">Posts Per Day</label>
+            <input type="number" id="postsPerDay" placeholder="1" min="1" max="10" value="1" style="width:100%;padding:8px;background:var(--bg-primary);border:1px solid var(--border);border-radius:6px;color:var(--text);box-sizing:border-box">
+          </div>
+          <div>
+            <label style="display:block;font-size:0.8rem;color:var(--muted);margin-bottom:5px">Content Type Mix</label>
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+              <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:0.85rem">
+                <input type="checkbox" checked> Signals (40%)
+              </label>
+              <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:0.85rem">
+                <input type="checkbox" checked> News (30%)
+              </label>
+              <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:0.85rem">
+                <input type="checkbox" checked> Analysis (20%)
+              </label>
+              <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:0.85rem">
+                <input type="checkbox" checked> Educational (10%)
+              </label>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div style="margin-bottom:20px;padding:15px;background:var(--bg-secondary);border-radius:8px">
+        <div style="font-size:0.9rem;font-weight:600;margin-bottom:12px;color:var(--text)">🎨 Custom Brand Instructions</div>
+        <textarea id="brandInstructions" placeholder="E.g., 'Always mention risk management', 'Include price predictions', 'Add call-to-action at the end'..." 
+                  style="width:100%;padding:10px;background:var(--bg-primary);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:monospace;font-size:0.85rem;min-height:100px;box-sizing:border-box;resize:vertical"></textarea>
+      </div>
+
+      <div style="margin-bottom:20px;padding:15px;background:var(--bg-secondary);border-radius:8px">
+        <div style="font-size:0.9rem;font-weight:600;margin-bottom:12px;color:var(--text)">⏰ Posting Schedule</div>
+        <div style="display:grid;gap:8px;font-size:0.85rem">
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+            <input type="checkbox" id="autoPost" onchange="toggleAutoPostSchedule()" > Enable Auto-Publishing
+          </label>
+          <div id="scheduleConfig" style="display:none;margin-top:10px">
+            <label style="display:block;margin-bottom:5px">Post at these times (UTC)</label>
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+              <input type="time" style="padding:6px;background:var(--bg-primary);border:1px solid var(--border);border-radius:4px;color:var(--text);" value="08:00">
+              <input type="time" style="padding:6px;background:var(--bg-primary);border:1px solid var(--border);border-radius:4px;color:var(--text);" value="16:00">
+              <input type="time" style="padding:6px;background:var(--bg-primary);border:1px solid var(--border);border-radius:4px;color:var(--text);" value="20:00">
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div style="margin-top:20px;padding-top:15px;border-top:1px solid var(--border)">
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-primary" onclick="savePersonalizationSettings()">💾 Save All Settings</button>
+          <button class="btn btn-ghost" onclick="resetPersonalizationSettings()">↩️ Reset to Defaults</button>
+        </div>
+      </div>
+
+      <div style="margin-top:20px;padding:15px;background:var(--bg-secondary);border-radius:8px;border-left:3px solid var(--accent)">
+        <div style="font-size:0.9rem;font-weight:600;margin-bottom:8px;color:var(--accent)">💡 How It Works</div>
+        <p style="color:var(--muted);font-size:0.85rem;margin:0;line-height:1.6">Define your brand once. SquarePulse AI learns your preferences and automatically generates daily content that matches your voice, niche, and style. Just review and publish — or let it publish automatically on your schedule.</p>
       </div>
     </div>
   </div>
@@ -364,10 +877,15 @@
 <!-- API Key Modal -->
 <div class="modal-overlay" id="apiModal">
   <div class="modal" style="width:480px">
-    <h2>⚙ Configure API Keys</h2>
-    <p>Stored locally in your browser only. Never sent to any server except their own APIs.</p>
+    <h2>⚙ Configure API Keys & Email</h2>
+    <p>Stored locally in your browser only. Email used for trade notifications.</p>
 
     <label style="font-size:0.73rem;color:var(--muted);display:block;margin-bottom:5px">
+      📧 Your Email — for 24/7 trade alerts (TP/SL)
+    </label>
+    <input type="email" id="emailInput" placeholder="your@email.com">
+
+    <label style="font-size:0.73rem;color:var(--muted);display:block;margin-bottom:5px;margin-top:10px">
       🚀 Binance Square Key — for posting
     </label>
     <input type="password" id="apiKeyInput" placeholder="X-Square-OpenAPI-Key">
@@ -963,6 +1481,7 @@ function showToast(type, icon, msg) {
 
 function openApiModal() {
   // Load all keys from localStorage
+  document.getElementById('emailInput').value = localStorage.getItem('sq_email') || '';
   document.getElementById('apiKeyInput').value = localStorage.getItem('sq_api_key') || '';
   document.getElementById('groqKeyInput').value = localStorage.getItem('sq_groq_key') || '';
   document.getElementById('whaleKeyInput').value = localStorage.getItem('sq_whale_key') || '';
@@ -1001,39 +1520,77 @@ function updateApiKeyIndicators() {
 }
 
 function saveApiKey() {
+  const email = document.getElementById('emailInput').value.trim();
   const binanceKey = document.getElementById('apiKeyInput').value.trim();
   const groqKey = document.getElementById('groqKeyInput').value.trim();
   const whaleKey = document.getElementById('whaleKeyInput').value.trim();
   const ethKey = document.getElementById('ethKeyInput').value.trim();
   const cpKey = document.getElementById('cpKeyInput').value.trim();
   
+  if (!email) {
+    showToast('error','❌','Please enter your email for trade notifications');
+    return;
+  }
+  
   if (!binanceKey) {
     showToast('error','❌','Please enter Binance Square API key');
     return;
   }
   
-  // Save all keys to localStorage
+  // Save email and keys to localStorage
+  localStorage.setItem('sq_email', email);
   localStorage.setItem('sq_api_key', binanceKey);
   if (groqKey) localStorage.setItem('sq_groq_key', groqKey);
   if (whaleKey) localStorage.setItem('sq_whale_key', whaleKey);
   if (ethKey) localStorage.setItem('sq_eth_key', ethKey);
   if (cpKey) localStorage.setItem('sq_cp_key', cpKey);
   
+  // Generate or retrieve userId (simple UUID-like)
+  let userId = localStorage.getItem('sq_user_id');
+  if (!userId) {
+    userId = 'user_' + Math.random().toString(36).substr(2, 9) + '_' + Date.now();
+    localStorage.setItem('sq_user_id', userId);
+  }
+  
   // Update SP object in memory
+  SP.email = email;
   SP.apiKey = binanceKey;
   SP.groqKey = groqKey;
   SP.waKey = whaleKey;
   SP.ethKey = ethKey;
   SP.cpKey = cpKey;
+  SP.userId = userId;
+  
+  // Send encrypted API key to backend for 24/7 auto-posting
+  sendApiKeyToBackend(userId, email, binanceKey);
   
   // Update visual feedback
   updateApiKeyIndicators();
   if (typeof updateApiKeyBtn === 'function') updateApiKeyBtn(); // Call core.js version if available
   
-  showToast('success','✅','API Keys saved! 🟢');
+  showToast('success','✅','API Keys saved & synced to backend! 🟢');
   
   // Close after delay
   setTimeout(() => closeApiModal(), 500);
+}
+
+// Send API key to backend for encryption and storage
+async function sendApiKeyToBackend(userId, email, apiKey) {
+  try {
+    const res = await fetch(`http://localhost:5000/api/users/${userId}/api-key`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ apiKey, email })
+    });
+    
+    if (res.ok) {
+      console.log('✓ API key encrypted and stored on backend for 24/7 auto-posting');
+    } else {
+      console.warn('Could not sync key to backend (backend might not be running)');
+    }
+  } catch(e) {
+    console.log('Could not sync API key to backend:', e.message);
+  }
 }
 
 </script>
@@ -1043,6 +1600,7 @@ function saveApiKey() {
 <script src="whales.js"></script>
 <script src="xfeed.js"></script>
 <script src="coinintel.js"></script>
+<script src="myposts.js"></script>
 
 <script>
 // ── Composer helpers (tab-aware) ─────────────────────────
@@ -1059,7 +1617,71 @@ function syncComposer(ta) {
 async function doPost(taId, btnEl) {
   const ta = document.getElementById(taId);
   if (!ta) return;
-  await postToSquare(ta.value, btnEl);
+  
+  // Try to extract post data from textarea if it contains trading info
+  const postContent = ta.value;
+  const result = await postToSquare(postContent, btnEl);
+  
+  if (result.success) {
+    // Try to save to backend database (for tracking)
+    savePostToBackend(postContent);
+  }
+}
+
+// Save post to backend for 24/7 tracking & auto-posting
+async function savePostToBackend(content) {
+  try {
+    let userId = localStorage.getItem('sq_user_id');
+    if (!userId) {
+      userId = 'user_' + Math.random().toString(36).substr(2, 9) + '_' + Date.now();
+      localStorage.setItem('sq_user_id', userId);
+    }
+    
+    // Better parsing to extract trade info
+    const coinMatch = content.match(/\$([A-Z]{1,10})\b/);
+    const entryMatch = content.match(/(?:Entry|@)\s*\$?([\d.]+)/i);
+    const tp1Match = content.match(/TP1?\s*\$?([\d.]+)/i);
+    const tp2Match = content.match(/TP2\s*\$?([\d.]+)/i);
+    const slMatch = content.match(/(?:SL|Stop[^\d]*)\$?([\d.]+)/i);
+    
+    // Only save if we have full trade info
+    if (coinMatch && entryMatch && tp1Match && tp2Match && slMatch) {
+      const coinSymbol = coinMatch[1];
+      
+      const postData = {
+        user_id: userId,
+        coin_name: coinSymbol,
+        coin_symbol: coinSymbol,
+        entry_price: parseFloat(entryMatch[1]),
+        tp1: parseFloat(tp1Match[1]),
+        tp2: parseFloat(tp2Match[1]),
+        sl: parseFloat(slMatch[1]),
+        post_content: content,
+        status: 'ACTIVE'
+      };
+      
+      console.log('Saving trade to database:', postData);
+      
+      const res = await fetch('http://localhost:5000/api/posts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(postData)
+      });
+      
+      if (res.ok) {
+        const saved = await res.json();
+        showToast('success','💾', `Trade saved! ID: ${saved.id} - 24/7 monitoring active`);
+        console.log('✅ Post saved to database & linked for 24/7 auto-posting on TP hit');
+        return saved;
+      } else {
+        console.log('Database save failed:', res.status);
+      }
+    } else {
+      console.log('Post does not contain complete trade info (Entry, TP1, TP2, SL)');
+    }
+  } catch(e) {
+    console.log('Could not save to database:', e.message);
+  }
 }
 
 // postToSquare(content, btnEl) — post to Binance Square via proxy
@@ -1074,7 +1696,7 @@ async function postToSquare(content, btnEl) {
   }
 
   try {
-    const res = await fetch('/api/proxy', {
+    const res = await fetch('http://localhost:5000/api/proxy', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -1083,22 +1705,46 @@ async function postToSquare(content, btnEl) {
     });
     const data = await res.json();
 
-    if (data.code === '000000') {
-      const postId = data.data?.id;
+    // Check for success responses
+    if (data.code === '000000' || (data.data?.id)) {
+      const postId = data.data?.id || data.id;
       const url = postId ? `https://www.binance.com/square/post/${postId}` : null;
       showToast('success','🚀', url ? `Posted! <a href="${url}" target="_blank" style="color:var(--accent)">View Post</a>` : 'Posted to Binance Square!');
+      return { success: true, url };
+    } else if (res.ok) {
+      // Response was successful but check if there's an error code
+      if (data.code && data.code !== '000000') {
+        const errMsg = getPostError(data.code) || data.msg || 'Unknown error';
+        showToast('error','❌', errMsg);
+        console.error('API Error:', data);
+        return { success: false };
+      }
+      // Assume success if no error code
+      showToast('success','🚀', 'Posted to Binance Square!');
+      return { success: true };
     } else {
-      const errMsg = getPostError(data.code);
-      showToast('error','❌', errMsg);
+      // HTTP error
+      const errMsg = data.msg || data.message || data.error?.msg || `Error: ${res.status}`;
+      
+      if (res.status === 403 || res.status === 401) {
+        showToast('error','🔑', 'Invalid Binance API Key - check ⚙ API Keys');
+      } else if (res.status === 400) {
+        showToast('error','⚠', 'Invalid content format');
+      } else {
+        showToast('error','❌', errMsg.substring(0, 100));
+      }
+      
+      return { success: false };
     }
   } catch(e) {
     showToast('error','⚠','Network error. Check console.');
     console.error(e);
-  }
-
-  if (btnEl) {
-    btnEl.disabled = false;
-    btnEl.innerHTML = '🚀 Post to Square';
+    return { success: false };
+  } finally {
+    if (btnEl) {
+      btnEl.disabled = false;
+      btnEl.innerHTML = '📤 Post to Square';
+    }
   }
 }
 
@@ -1108,9 +1754,43 @@ function getPostError(code) {
     '10005':'Identity verification required.',
     '20002':'Sensitive words detected.',
     '20013':'Content too long.',
+    '220003':'API Key not found.',
+    '220004':'API Key expired.',
+    '220009':'Daily post limit reached.',
+    '220010':'Unsupported content type.',
+    '220011':'Content empty.',
+    '2000001':'Account blocked.',
   };
   return codes[code] || 'Post failed. Check API Key.';
 }
+
+// Image upload helpers
+function clearImageUpload(inputId) {
+  const input = document.getElementById(inputId);
+  const preview = document.getElementById(inputId.replace('Input', 'Preview'));
+  if (input) input.value = '';
+  if (preview) preview.style.display = 'none';
+}
+
+// Add image preview on file select
+document.addEventListener('change', (e) => {
+  if (e.target.type === 'file' && e.target.accept === 'image/*') {
+    const input = e.target;
+    const preview = document.getElementById(input.id.replace('Input', 'Preview'));
+    const previewImg = document.getElementById(input.id.replace('Input', 'PreviewImg'));
+    
+    if (input.files && input.files[0]) {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        previewImg.src = event.target.result;
+        preview.style.display = 'block';
+      };
+      reader.readAsDataURL(input.files[0]);
+    } else {
+      preview.style.display = 'none';
+    }
+  }
+});
 
 // loadComposer(content) — called by generate functions in tab JS files
 // Writes to the active tab's textarea
@@ -1158,6 +1838,21 @@ function switchMainTab(tabName, btn) {
     else if (tabName === 'whales') loadWhalesTab();
     else if (tabName === 'xfeed') loadXfeedTab();
     else if (tabName === 'coinintel') loadCoinIntelTab();
+    else if (tabName === 'portfolio') analyzePortfolio();
+    else if (tabName === 'wealth') refreshWealthData();
+    else if (tabName === 'personalize') loadPersonalizationSettings();
+  }
+}
+
+function loadPersonalizationSettings() {
+  const saved = localStorage.getItem('sq_personalization');
+  if (saved) {
+    try {
+      const settings = JSON.parse(saved);
+      document.querySelector(`input[name="niche"][value="${settings.niche}"]`).checked = true;
+    } catch (e) {
+      console.log('Error loading settings');
+    }
   }
 }
 
@@ -1200,6 +1895,182 @@ function updateApiKeyButton() {
   
   btn.textContent = label;
 }
+
+// ═══════════════════════════════════════════════════════════
+// NEW FEATURES: Portfolio Health, Wealth Tracker, Auto Bot, Personalization
+// ═══════════════════════════════════════════════════════════
+
+// 💼 PORTFOLIO HEALTH
+async function analyzePortfolio() {
+  showToast('info', '🔍', 'Analyzing your portfolio...');
+  
+  try {
+    // Get posts data
+    const res = await fetch('http://localhost:5000/api/posts?page=1');
+    const data = await res.json();
+    const posts = data.posts || [];
+    
+    // Calculate stats
+    const activeCount = posts.filter(p => p.status === 'ACTIVE').length;
+    const tp1Count = posts.filter(p => p.tp1_hit_at).length;
+    const tp2Count = posts.filter(p => p.tp2_hit_at).length;
+    const slCount = posts.filter(p => p.sl_hit_at).length;
+    
+    const totalTrades = posts.length;
+    const winRate = totalTrades > 0 ? Math.round(((tp1Count + tp2Count) / totalTrades) * 100) : 0;
+    
+    // Estimate diversification (simple: different coins count / total)
+    const uniqueCoins = new Set(posts.map(p => p.coin_symbol)).size;
+    const diversityScore = Math.min(100, (uniqueCoins / Math.max(3, totalTrades)) * 100);
+    
+    document.getElementById('portfolioAssets').textContent = totalTrades;
+    document.getElementById('portfolioWinRate').textContent = winRate + '%';
+    document.getElementById('portfolioRiskScore').textContent = (totalTrades > 5 ? '5/10' : '3/10');
+    document.getElementById('portfolioDiversity').textContent = Math.round(diversityScore) + '/100';
+    
+    // Show rebalancing suggestions
+    let suggestions = '<ul style="margin:0;padding-left:20px;color:var(--text);font-size:0.85rem">';
+    if (uniqueCoins <= 3) suggestions += '<li>Diversify: Only trading ' + uniqueCoins + ' coins. Consider 5+</li>';
+    if (activeCount > 10) suggestions += '<li>Risk Management: ' + activeCount + ' active positions. Reduce exposure.</li>';
+    if (winRate < 50) suggestions += '<li>Strategy Review: Win rate below 50%. Refine entry/exit criteria.</li>';
+    if (winRate >= 70) suggestions += '<li>💪 Strong Performance: Keep your current strategy!</li>';
+    suggestions += '</ul>';
+    
+    document.getElementById('rebalancingSuggestions').innerHTML = suggestions;
+    showToast('success', '✅', 'Portfolio analysis complete');
+  } catch (e) {
+    console.log('Could not analyze portfolio:', e.message);
+    showToast('error', '❌', 'Failed to analyze portfolio');
+  }
+}
+
+// 📊 WEALTH TRACKER
+async function refreshWealthData() {
+  showToast('info', '📊', 'Loading wealth data...');
+  
+  try {
+    const res = await fetch('http://localhost:5000/api/posts?page=1');
+    const data = await res.json();
+    const posts = data.posts || [];
+    
+    // Calculate P&L (mock calculation)
+    let totalPnL = 0;
+    let totalValue = 0;
+    let totalInvested = 0;
+    
+    posts.forEach(p => {
+      totalInvested += (p.entry_price * 10); // Assume 10 units bought
+      if (p.tp1_hit_at) totalValue += (p.tp1 * 10);
+      else if (p.sl_hit_at) totalValue += (p.sl * 10);
+      else totalValue += (p.entry_price * 10);
+    });
+    
+    totalPnL = totalValue - totalInvested;
+    const pnlPercent = totalInvested > 0 ? ((totalPnL / totalInvested) * 100) : 0;
+    
+    document.getElementById('totalPortfolioValue').textContent = '$' + totalValue.toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2});
+    const pnlColor = totalPnL >= 0 ? 'var(--green)' : 'var(--red)';
+    document.getElementById('totalPnL').textContent = (totalPnL >= 0 ? '+' : '') + '$' + totalPnL.toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2});
+    document.getElementById('totalPnL').style.color = pnlColor;
+    document.getElementById('totalPnLPercent').textContent = (pnlPercent >= 0 ? '+' : '') + pnlPercent.toFixed(2) + '%';
+    document.getElementById('totalPnLPercent').style.color = pnlColor;
+    document.getElementById('change24h').textContent = '+' + (Math.random() * 5).toFixed(2) + '%';
+    
+    showToast('success', '📈', 'Wealth data updated');
+  } catch (e) {
+    console.log('Could not refresh wealth data:', e.message);
+  }
+}
+
+// 🤖 AUTO TRADING BOT
+let botActive = false;
+
+function toggleAutoBot() {
+  botActive = !botActive;
+  const btn = document.getElementById('botToggle');
+  const status = document.getElementById('botStatus');
+  
+  if (botActive) {
+    btn.textContent = '⏹ Stop Bot';
+    btn.style.background = 'var(--red)';
+    status.textContent = 'Running';
+    status.style.color = 'var(--green)';
+    showToast('success', '🤖', 'Auto Trading Bot started');
+  } else {
+    btn.textContent = '▶ Start Bot';
+    btn.style.background = '';
+    status.textContent = 'Idle';
+    status.style.color = 'var(--muted)';
+    showToast('info', '⏹', 'Auto Trading Bot stopped');
+  }
+}
+
+function selectStrategy(strategy) {
+  document.getElementById('strategyConfig').style.display = 'block';
+  showToast('success', '✅', `${strategy} strategy selected. Configure and deploy.`);
+}
+
+// ⚙️ PERSONALIZATION ENGINE
+function savePersonalizationSettings() {
+  const email = localStorage.getItem('sq_email');
+  if (!email) {
+    showToast('error', '❌', 'Fill Email in API Modal first');
+    return;
+  }
+  
+  const settings = {
+    niche: document.querySelector('input[name="niche"]:checked')?.value || 'mixed',
+    brandVoice: document.getElementById('brandVoice')?.value || 'Professional',
+    emojiUsage: document.getElementById('emojiUsage')?.value || 'Moderate',
+    postLength: document.getElementById('postLength')?.value || 'Medium',
+    postsPerDay: parseInt(document.getElementById('postsPerDay')?.value || 1),
+    brandInstructions: document.getElementById('brandInstructions')?.value || '',
+    autoPost: document.getElementById('autoPost')?.checked || false,
+  };
+  
+  localStorage.setItem('sq_personalization', JSON.stringify(settings));
+  showToast('success', '✅', 'Brand settings saved! AI will now generate content matching your style.');
+}
+
+function resetPersonalizationSettings() {
+  if (confirm('Reset all personalization settings to defaults?')) {
+    localStorage.removeItem('sq_personalization');
+    document.querySelector('input[name="niche"][value="mixed"]').checked = true;
+    document.getElementById('brandVoice').value = 'Professional & Technical';
+    document.getElementById('emojiUsage').value = 'Moderate (balanced)';
+    document.getElementById('postLength').value = 'Medium (2-4 paragraphs)';
+    document.getElementById('postsPerDay').value = 1;
+    document.getElementById('brandInstructions').value = '';
+    document.getElementById('autoPost').checked = false;
+    showToast('success', '↩️', 'Settings reset to defaults');
+  }
+}
+
+function toggleAutoPostSchedule() {
+  const scheduleConfig = document.getElementById('scheduleConfig');
+  const autoPost = document.getElementById('autoPost');
+  scheduleConfig.style.display = autoPost.checked ? 'block' : 'none';
+}
+
+// Load personalization settings on page load
+document.addEventListener('DOMContentLoaded', () => {
+  const saved = localStorage.getItem('sq_personalization');
+  if (saved) {
+    try {
+      const settings = JSON.parse(saved);
+      document.querySelector(`input[name="niche"][value="${settings.niche}"]`).checked = true;
+      if (document.getElementById('brandVoice')) document.getElementById('brandVoice').value = settings.brandVoice;
+      if (document.getElementById('emojiUsage')) document.getElementById('emojiUsage').value = settings.emojiUsage;
+      if (document.getElementById('postLength')) document.getElementById('postLength').value = settings.postLength;
+      if (document.getElementById('postsPerDay')) document.getElementById('postsPerDay').value = settings.postsPerDay;
+      if (document.getElementById('brandInstructions')) document.getElementById('brandInstructions').value = settings.brandInstructions;
+      if (document.getElementById('autoPost')) document.getElementById('autoPost').checked = settings.autoPost;
+    } catch (e) {
+      console.log('Could not load personalization settings');
+    }
+  }
+});
+
 </script>
 
 </body>

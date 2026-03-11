@@ -18,7 +18,7 @@ async function loadForexTab() {
     const params  = new URLSearchParams({ type: 'forex' });
     if (groqKey) params.append('groqKey', groqKey);
 
-    const res  = await fetch(`/api/proxy?${params}`);
+    const res  = await fetch(`http://localhost:5000/api/proxy?${params}`);
     const data = await res.json();
 
     if (data.success && data.fallback && !data.data?.length) {

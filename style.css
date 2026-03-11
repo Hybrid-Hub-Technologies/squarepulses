@@ -147,6 +147,9 @@ header {
 .btn-green:hover { background:#00f09a; transform:translateY(-1px); }
 .btn-green:disabled { opacity:0.5; cursor:not-allowed; transform:none; }
 .btn-red { background:var(--red); color:#fff; }
+.btn-secondary { background:rgba(100,200,255,0.15); border:1px solid rgba(100,200,255,0.4); color:rgba(100,200,255,0.9); }
+.btn-secondary:hover { background:rgba(100,200,255,0.25); border-color:rgba(100,200,255,0.7); transform:translateY(-1px); }
+.btn-secondary:disabled { opacity:0.5; cursor:not-allowed; transform:none; }
 .btn-generate {
   background:linear-gradient(135deg,#1a1a2e,#0d0d1a);
   border:1px solid rgba(240,185,11,0.4);

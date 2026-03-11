@@ -4,6 +4,8 @@
 
 // ── Global state ─────────────────────────────────────────
 window.SP = {
+  email:    localStorage.getItem('sq_email')      || '',
+  userId:   localStorage.getItem('sq_user_id')    || '',
   apiKey:   localStorage.getItem('sq_api_key')   || '',
   groqKey:  localStorage.getItem('sq_groq_key')  || '',
   waKey:    localStorage.getItem('sq_wa_key')     || '',
@@ -12,6 +14,21 @@ window.SP = {
   watchlist: JSON.parse(localStorage.getItem('sq_watchlist') || '[]'),
   activeMainTab: 'signals',
 };
+
+// ── Load Groq Key from Backend (from .env) ─────────────────
+async function loadGroqKeyFromEnv() {
+  try {
+    const res = await fetch('http://localhost:5000/api/keys');
+    const data = await res.json();
+    if (data.groqKey && !localStorage.getItem('sq_groq_key')) {
+      SP.groqKey = data.groqKey;
+      console.log('✅ Loaded Groq API key from backend');
+    }
+  } catch(e) {
+    console.log('Could not load key from backend:', e.message);
+  }
+}
+loadGroqKeyFromEnv();
 
 // ── Init ──────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
@@ -64,14 +81,33 @@ function saveApiKey() {
     sq_wa_key:   document.getElementById('whaleKeyInput').value.trim(),
     sq_eth_key:  document.getElementById('ethKeyInput').value.trim(),
     sq_cp_key:   document.getElementById('cpKeyInput').value.trim(),
+    sq_email:    document.getElementById('emailInput')?.value.trim() || '',
   };
-  const map = { sq_api_key:'apiKey', sq_groq_key:'groqKey', sq_wa_key:'waKey', sq_eth_key:'ethKey', sq_cp_key:'cpKey' };
+  const map = { sq_api_key:'apiKey', sq_groq_key:'groqKey', sq_wa_key:'waKey', sq_eth_key:'ethKey', sq_cp_key:'cpKey', sq_email:'email' };
   Object.entries(keys).forEach(([lsKey, val]) => {
     if (val) { SP[map[lsKey]] = val; localStorage.setItem(lsKey, val); }
   });
+  
+  // Send API key to backend for encryption and storage
+  if (keys.sq_api_key) {
+    const userId = SP.userId || generateUserId();
+    SP.userId = userId;
+    localStorage.setItem('sq_user_id', userId);
+    
+    fetch('http://localhost:5000/api/users/' + userId + '/api-key', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ apiKey: keys.sq_api_key, email: keys.sq_email })
+    }).catch(e => console.log('Could not save key to backend:', e.message));
+  }
+  
   updateApiKeyBtn();
   closeApiModal();
   showToast('success','✅','Keys saved!');
+}
+
+function generateUserId() {
+  return 'user_' + Math.random().toString(36).substr(2, 9) + '_' + Date.now();
 }
 function updateApiKeyBtn() {
   const btn = document.getElementById('apiKeyBtn');
@@ -139,12 +175,10 @@ const POST_ERRORS = {
 
 // ── AI Analysis via Groq (Free — get key at groq.com) ────
 // Groq free tier: fast inference, no billing needed for basic use
+// NOTE: Called through backend proxy to avoid CORS issues
 async function callClaude(systemPrompt, userPrompt, useSearch = true) {
-  const key = SP.groqKey;
-  if (!key) {
-    showToast('error','🔑','Set your Groq API Key first (free at groq.com)');
-    openApiModal();
-    throw new Error('No Groq API key');
+  if (!systemPrompt || !userPrompt) {
+    throw new Error('Missing system or user prompt');
   }
 
   // If search needed, prepend a note so the model knows to use its training knowledge
@@ -152,32 +186,83 @@ async function callClaude(systemPrompt, userPrompt, useSearch = true) {
     ? `[Use your latest training knowledge for current info]\n\n${userPrompt}`
     : userPrompt;
 
-  const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Content-Type':  'application/json',
-      'Authorization': `Bearer ${key}`,
-    },
-    body: JSON.stringify({
-      model:       'llama-3.3-70b-versatile',
-      temperature: 0.7,
-      max_tokens:  1500,
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user',   content: finalUser    },
-      ],
-    }),
-  });
+  try {
+    const res = await fetch('http://localhost:5000/api/claude', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        systemPrompt,
+        userPrompt: finalUser
+      }),
+    });
 
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err?.error?.message || `Groq error ${res.status}`);
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err?.error || `Groq error ${res.status}`);
+    }
+
+    const data = await res.json();
+    const text = data?.text || '';
+    if (!text) throw new Error('Empty response from Groq');
+    return text.trim();
+
+  } catch (error) {
+    console.error('Groq call failed:', error.message);
+    throw error;
+  }
+}
+
+// ── Edit Post with AI ───────────────────────────────────────
+async function editPostWithAI(textareaId, instructionsId, btnEl) {
+  const textarea = document.getElementById(textareaId);
+  const instructionsInput = document.getElementById(instructionsId);
+  
+  if (!textarea?.value?.trim()) {
+    showToast('info','📝','Generate or write a post first');
+    return;
+  }
+  
+  const editInstructions = instructionsInput?.value?.trim();
+  if (!editInstructions) {
+    showToast('info','💭','Tell AI how to edit your post');
+    return;
   }
 
-  const data = await res.json();
-  const text = data?.choices?.[0]?.message?.content || '';
-  if (!text) throw new Error('Empty response from Groq');
-  return text.trim();
+  if (!SP.groqKey) {
+    showToast('error','🔑','Set your Groq API Key first');
+    openApiModal();
+    return;
+  }
+
+  if (btnEl) {
+    btnEl.disabled = true;
+    btnEl.innerHTML = '<span class="spinner"></span> Editing...';
+  }
+
+  try {
+    const currentPost = textarea.value;
+    const systemPrompt = `You are an expert crypto trader and social media expert. Edit the provided post based on the user's instructions. Keep the information accurate and factual. Return ONLY the edited post text, without any explanations or markdown formatting.`;
+    
+    const userPrompt = `Here's the current post:\n\n${currentPost}\n\nEdit instructions: ${editInstructions}\n\nProvide the edited post:`;
+    
+    const editedPost = await callClaude(systemPrompt, userPrompt, false);
+    
+    textarea.value = editedPost;
+    if (typeof syncComposer === 'function') syncComposer(textarea);
+    instructionsInput.value = '';
+    
+    showToast('success','✨','Post edited with AI!');
+  } catch (e) {
+    console.error('Error editing post:', e);
+    showToast('error','⚠', e.message || 'Failed to edit post');
+  } finally {
+    if (btnEl) {
+      btnEl.disabled = false;
+      btnEl.innerHTML = '🤖 Edit with AI';
+    }
+  }
 }
 
 // ── Toast ─────────────────────────────────────────────────

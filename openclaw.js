@@ -125,7 +125,7 @@ function renderOpenPositions(positions) {
 
 // Load positions on page load
 document.addEventListener('DOMContentLoaded', () => {
-  if (SP.userId) {
+  if (typeof window.SP !== 'undefined' && window.SP.userId) {
     loadOpenPositions();
   }
 });

@@ -35,13 +35,6 @@ document.addEventListener('DOMContentLoaded', () => {
   updateApiKeyBtn();
 });
 
-// ── Main Tab Switching ────────────────────────────────────
-// NOTE: Full implementation is in index.html - don't duplicate here
-  if (name === 'whales'    && !window._whalesLoaded)   { loadWhalesTab();   window._whalesLoaded = true; }
-  if (name === 'xfeed'     && !window._xfeedLoaded)    { loadXFeedTab();    window._xfeedLoaded = true; }
-  if (name === 'coinintel' && !window._intelLoaded)    { loadCoinIntelTab(); window._intelLoaded = true; }
-}
-
 // ── Inner Tab Switching ───────────────────────────────────
 function switchTab(name, btn) {
   const parent = btn.closest('.card, .main-tab-pane');

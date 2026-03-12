@@ -6,6 +6,53 @@ const API_URL = 'http://localhost:5000/api';
 let currentPage = 1;
 let alertCheckInterval = null;
 
+// Helper functions
+function formatPrice(p) {
+  if (!p) return '0.00';
+  const n = parseFloat(p);
+  if (n >= 1000)   return n.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+  if (n >= 1)      return n.toFixed(4);
+  if (n >= 0.0001) return n.toFixed(6);
+  return n.toExponential(4);
+}
+
+function timeAgo(date) {
+  if (typeof date === 'string') date = new Date(date);
+  if (!(date instanceof Date)) return 'unknown';
+  const ms = Date.now() - date.getTime();
+  const s = Math.floor(ms / 1000);
+  if (s < 60)   return s + 's ago';
+  if (s < 3600) return Math.floor(s/60) + 'm ago';
+  if (s < 86400)return Math.floor(s/3600) + 'h ago';
+  return Math.floor(s/86400) + 'd ago';
+}
+
+function playAlertSound(isPump) {
+  try {
+    const ctx   = new (window.AudioContext || window.webkitAudioContext)();
+    const freqs = isPump ? [440,554,659] : [330,277,220];
+    freqs.forEach((freq,i) => {
+      const osc  = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain); gain.connect(ctx.destination);
+      osc.frequency.value = freq; osc.type = 'sine';
+      gain.gain.setValueAtTime(0.3, ctx.currentTime + i*0.15);
+      gain.gain.setValueAtTime(0, ctx.currentTime + i*0.15 + 0.1);
+      osc.start(ctx.currentTime + i*0.15);
+      osc.stop(ctx.currentTime + i*0.15 + 0.1);
+    });
+  } catch(e) {
+    console.log('Alert sound unavailable');
+  }
+}
+
+// Fallback showToast if not defined by index.html
+if (typeof window.showToast === 'undefined') {
+  window.showToast = function(type, icon, msg) {
+    console.log(`${icon} [${type}] ${msg}`);
+  };
+}
+
 // Load posts on tab switch
 async function loadMyPosts(page = 1) {
   currentPage = page;
@@ -84,16 +131,17 @@ async function handleAlert(alert) {
 
   let autoPostContent = '';
   let alertType = '';
+  const originalPostLink = alert.post_url ? `\n\n📖 Original Signal: ${alert.post_url}` : '';
 
   if (alert.tp1_hit_at && !alert.tp2_hit_at && !alert.sl_hit_at) {
     alertType = 'TP1';
-    autoPostContent = `🎉 TP1 HIT! ${alert.coin_symbol} reached target! 📈\n\n💰 Entry: $${formatPrice(alert.entry_price)}\n✅ TP1 Target: $${formatPrice(alert.tp1)}\n🎯 Next Target: $${formatPrice(alert.tp2)}\n\nRide the wave! #${alert.coin_symbol} #CryptoProfits #Profitable`;
+    autoPostContent = `🎉 TP1 HIT! $${alert.coin_symbol} reached target! 📈\n\n💰 Entry: $${formatPrice(alert.entry_price)}\n✅ TP1 Target: $${formatPrice(alert.tp1)}\n🎯 Next Target: $${formatPrice(alert.tp2)}\n\nRide the wave! #${alert.coin_symbol} #CryptoProfits #Profitable${originalPostLink}`;
   } else if (alert.tp2_hit_at) {
     alertType = 'TP2';
-    autoPostContent = `🚀 TP2 HIT! ${alert.coin_symbol} reached second target! 💰\n\n✅ TP1: $${formatPrice(alert.tp1)}\n🎯 TP2: $${formatPrice(alert.tp2)}\n\nLock in those gains and take profit! #${alert.coin_symbol} #Trading #Successful`;
+    autoPostContent = `🚀 TP2 HIT! $${alert.coin_symbol} reached second target! 💰\n\n✅ TP1: $${formatPrice(alert.tp1)}\n🎯 TP2: $${formatPrice(alert.tp2)}\n\nLock in those gains and take profit! #${alert.coin_symbol} #Trading #Successful${originalPostLink}`;
   } else if (alert.sl_hit_at) {
     alertType = 'SL';
-    autoPostContent = `⚠️ Stop Loss Hit - ${alert.coin_symbol}\n\nPrice hit stop loss at $${formatPrice(alert.sl)}.\n\nThe trade didn't work out. Cut losses & move to next opportunity.\nDOYR - Not financial advice.\n\n#RiskManagement #Trading`;
+    autoPostContent = `⚠️ Stop Loss Hit - $${alert.coin_symbol}\n\nPrice hit stop loss at $${formatPrice(alert.sl)}.\n\nThe trade didn't work out. Cut losses & move to next opportunity.\nDOYR - Not financial advice.\n\n#RiskManagement #Trading${originalPostLink}`;
   }
 
   if (!autoPostContent) return;
@@ -107,7 +155,7 @@ async function handleAlert(alert) {
     });
     const data = await res.json();
 
-    if (data.code === '000000') {
+    if (data.code === '000000' || data.data?.id) {
       // Mark as posted
       await fetch(`${API_URL}/posts/${alert.id}/posted`, { method: 'PATCH' });
       

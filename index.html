@@ -1778,7 +1778,7 @@ async function doPost(taId, btnEl) {
   }
 }
 
-// Save post to backend for 24/7 tracking & auto-posting
+// Save post to backend for tracking & auto-posting
 async function savePostToBackend(content, postUrl) {
   try {
     let userId = localStorage.getItem('sq_user_id');
@@ -1787,52 +1787,65 @@ async function savePostToBackend(content, postUrl) {
       localStorage.setItem('sq_user_id', userId);
     }
     
-    // Better parsing to extract trade info
-    const coinMatch = content.match(/\$([A-Z]{1,10})\b/);
-    const entryMatch = content.match(/(?:Entry|@)\s*\$?([\d.]+)/i);
-    const tp1Match = content.match(/TP1?\s*\$?([\d.]+)/i);
-    const tp2Match = content.match(/TP2\s*\$?([\d.]+)/i);
-    const slMatch = content.match(/(?:SL|Stop[^\d]*)\$?([\d.]+)/i);
+    // Smart extraction: Look for patterns like "$BTC Entry: 50000 TP1: 52000 TP2: 54000 SL: 48000"
+    // Also handles: "Entry: $50000", "@50000", etc.
     
-    // Only save if we have full trade info
-    if (coinMatch && entryMatch && tp1Match && tp2Match && slMatch) {
-      const coinSymbol = coinMatch[1];
-      
-      const postData = {
-        user_id: userId,
-        coin_name: coinSymbol,
-        coin_symbol: coinSymbol,
-        entry_price: parseFloat(entryMatch[1]),
-        tp1: parseFloat(tp1Match[1]),
-        tp2: parseFloat(tp2Match[1]),
-        sl: parseFloat(slMatch[1]),
-        post_content: content,
-        post_url: postUrl || null,
-        status: 'ACTIVE'
-      };
-      
-      console.log('Saving trade to database:', postData);
-      
-      const res = await fetch('http://localhost:5000/api/posts', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(postData)
-      });
-      
-      if (res.ok) {
-        const saved = await res.json();
-        showToast('success','💾', `Trade saved! ID: ${saved.id} - 24/7 monitoring active`);
-        console.log('✅ Post saved to database & linked for 24/7 auto-posting on TP hit');
-        console.log('📖 Post URL saved:', postUrl);
-        return saved;
-      } else {
-        console.log('Database save failed:', res.status);
-      }
+    const coinMatch = content.match(/\$([A-Z]{2,10})\b/);
+    
+    // Look for Entry/Entry Price patterns - handle different formats
+    const entryMatch = content.match(/(?:Entry|Entry Price|@)\s*:?\s*\$?([\d.]+)/i) || 
+                       content.match(/(?:Entry|@|price)\s*\$?([\d.]+)/i);
+    
+    // TP1 extraction - handle "TP1: $50000", "TP1 50000", "🎁 TP1:"
+    const tp1Match = content.match(/(?:TP1?\s*:?\s*\$?([\d.]+)|🎁.*?\$?([\d.]+))/i);
+    const tp1 = tp1Match ? (tp1Match[1] || tp1Match[2]) : null;
+    
+    // TP2 extraction  
+    const tp2Match = content.match(/(?:TP2\s*:?\s*\$?([\d.]+)|🚀.*?\$?([\d.]+))/i);
+    const tp2 = tp2Match ? (tp2Match[1] || tp2Match[2]) : null;
+    
+    // SL (Stop Loss) extraction
+    const slMatch = content.match(/(?:SL|Stop Loss|Stop)\s*:?\s*\$?([\d.]+)/i) ||
+                    content.match(/(?:🛑|⛔).*?\$?([\d.]+)/i);
+    const sl = slMatch ? (slMatch[1] || slMatch[2]) : null;
+    
+    // Build post data
+    const postData = {
+      user_id: userId,
+      coin_name: coinMatch ? coinMatch[1] : 'GENERAL',
+      coin_symbol: coinMatch ? coinMatch[1] : 'GENERAL',
+      entry_price: entryMatch ? parseFloat(entryMatch[1]) : 0,
+      tp1: tp1 ? parseFloat(tp1) : 0,
+      tp2: tp2 ? parseFloat(tp2) : 0,
+      sl: sl ? parseFloat(sl) : 0,
+      post_content: content,
+      post_url: postUrl || null,
+      status: 'ACTIVE'
+    };
+    
+    console.log('Saving post to database:', postData);
+    
+    const res = await fetch('http://localhost:5000/api/posts', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(postData)
+    });
+    
+    if (res.ok) {
+      const saved = await res.json();
+      showToast('success','💾', `✅ Post saved! ID: ${saved.id}`);
+      console.log('✅ Post saved to database');
+      console.log('📖 Extracted Data:', { coin: postData.coin_symbol, entry: postData.entry_price, tp1: postData.tp1, tp2: postData.tp2, sl: postData.sl });
+      console.log('🔗 Post URL:', postUrl);
+      return saved;
     } else {
-      console.log('Post does not contain complete trade info (Entry, TP1, TP2, SL)');
+      const err = await res.json().catch(() => ({}));
+      console.error('Database save failed:', res.status, err);
+      showToast('warning','⚠️', 'Post saved to Square but db save failed');
     }
   } catch(e) {
-    console.log('Could not save to database:', e.message);
+    console.error('Could not save to database:', e.message);
+    showToast('warning','⚠️', 'Post saved to Square but tracking failed - start backend');
   }
 }
 
@@ -2006,13 +2019,29 @@ function switchTab(name, btn) {
 
 // ── Main tab switching (using SP from core.js) ───────────
 function switchMainTab(tabName, btn) {
+  // Ensure SP is initialized (fallback if core.js hasn't loaded)
+  if (typeof window.SP === 'undefined') {
+    window.SP = {
+      email:    localStorage.getItem('sq_email')      || '',
+      userId:   localStorage.getItem('sq_user_id')    || '',
+      apiKey:   localStorage.getItem('sq_api_key')   || '',
+      groqKey:  localStorage.getItem('sq_groq_key')  || '',
+      waKey:    localStorage.getItem('sq_wa_key')     || '',
+      ethKey:   localStorage.getItem('sq_eth_key')    || '',
+      cpKey:    localStorage.getItem('sq_cp_key')     || '',
+      watchlist: JSON.parse(localStorage.getItem('sq_watchlist') || '[]'),
+      activeMainTab: 'signals',
+    };
+    console.warn('⚠️ SP was not initialized by core.js, initialized fallback');
+  }
+
   document.querySelectorAll('.main-tab-btn').forEach(b => b.classList.remove('active'));
   document.querySelectorAll('.main-tab-pane').forEach(p => p.classList.remove('active'));
   btn.classList.add('active');
   const pane = document.getElementById('mt-' + tabName);
   if (pane) {
     pane.classList.add('active');
-    SP.activeMainTab = tabName;
+    if (window.SP) SP.activeMainTab = tabName;
     // Load content for tab if needed
     if (tabName === 'assistant') {
       AIAssistant.init();

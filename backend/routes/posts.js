@@ -51,14 +51,15 @@ router.get('/users/:userId/api-key', (req, res) => {
 router.post('/posts', (req, res) => {
   const { user_id, coin_name, coin_symbol, entry_price, tp1, tp2, sl, post_content, post_url, status } = req.body;
 
-  if (!user_id || !coin_symbol || !entry_price || !tp1 || !tp2 || !sl) {
-    return res.status(400).json({ error: 'Missing required fields' });
+  // Only require user_id and post_content - trade info is optional
+  if (!user_id || !post_content) {
+    return res.status(400).json({ error: 'Missing required fields: user_id and post_content' });
   }
 
   db.run(`
     INSERT INTO posts (user_id, coin_name, coin_symbol, entry_price, tp1, tp2, sl, post_content, post_url, status)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `, [user_id, coin_name, coin_symbol, entry_price, tp1, tp2, sl, post_content, post_url || null, status || 'ACTIVE'], function(err) {
+  `, [user_id, coin_name || null, coin_symbol || 'GENERAL', entry_price || 0, tp1 || 0, tp2 || 0, sl || 0, post_content, post_url || null, status || 'ACTIVE'], function(err) {
     if (err) return res.status(500).json({ error: err.message });
     res.json({ id: this.lastID, message: 'Post saved successfully', post_url });
   });

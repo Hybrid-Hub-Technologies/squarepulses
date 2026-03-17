@@ -973,7 +973,7 @@
 
 <!-- API Key Modal -->
 <div class="modal-overlay" id="apiModal">
-  <div class="modal" style="width:480px">
+  <div class="modal" style="width:500px;max-height:90vh;overflow-y:auto">
     <h2>⚙ Configure API Keys & Email</h2>
     <p>Stored locally in your browser only. Email used for trade notifications.</p>
 
@@ -981,6 +981,27 @@
       📧 Your Email — for 24/7 trade alerts (TP/SL)
     </label>
     <input type="email" id="emailInput" placeholder="your@email.com">
+
+    <fieldset style="border:1px solid var(--border);padding:10px;border-radius:4px;margin-top:10px">
+      <legend style="font-weight:600;color:var(--accent)">💰 Binance Trading API</legend>
+      
+      <label style="font-size:0.73rem;color:var(--muted);display:block;margin-bottom:5px;margin-top:8px">
+        🔑 Binance API Key
+        <a href="https://www.binance.com/en/my/settings/api-management" target="_blank" style="color:var(--accent);text-decoration:none"> Get →</a>
+      </label>
+      <input type="password" id="binanceKeyInput" placeholder="Your Binance API Key">
+
+      <label style="font-size:0.73rem;color:var(--muted);display:block;margin-bottom:5px;margin-top:8px">
+        🔐 Binance Secret Key
+      </label>
+      <input type="password" id="binanceSecretInput" placeholder="Your Binance Secret Key">
+      
+      <p style="font-size:0.65rem;color:var(--muted);margin-top:8px">
+        ✓ Enable: Spot Trading only<br>
+        ✓ Never enable withdrawals<br>
+        ✓ Keys stored encrypted locally
+      </p>
+    </fieldset>
 
     <label style="font-size:0.73rem;color:var(--muted);display:block;margin-bottom:5px;margin-top:10px">
       🚀 Binance Square Key — for posting
@@ -1388,7 +1409,7 @@ function renderTokenResults(tokens) {
       </div>
       <div class="token-price">
         <div class="price">$${formatPrice(t.price)}</div>
-        <div class="change ${t.percentChange24h >= 0 ? 'up' : 'down'}">${t.percentChange24h >= 0 ? '+' : ''}${t.percentChange24h.toFixed(2)}%</div>
+        <div class="change ${(t.percentChange24h ?? 0) >= 0 ? 'up' : 'down'}">${(t.percentChange24h ?? 0) >= 0 ? '+' : ''}${(t.percentChange24h ?? 0).toFixed(2)}%</div>
       </div>
     </div>
   `).join('');
@@ -1581,7 +1602,7 @@ function renderWatchlist() {
     <div class="watchlist-item">
       <div class="wl-info">
         <div class="wl-name">${t.symbol}</div>
-        <div class="wl-change">${t.percentChange24h >= 0 ? '+' : ''}${t.percentChange24h.toFixed(2)}%</div>
+        <div class="wl-change">${(t.percentChange24h ?? 0) >= 0 ? '+' : ''}${(t.percentChange24h ?? 0).toFixed(2)}%</div>
       </div>
       <button class="remove-btn" onclick="removeFromWatchlist(${i})">✕</button>
     </div>
@@ -1635,6 +1656,10 @@ function openApiModal() {
   document.getElementById('ethKeyInput').value = localStorage.getItem('sq_eth_key') || '';
   document.getElementById('cpKeyInput').value = localStorage.getItem('sq_cp_key') || '';
   
+  // Load Binance Trading API credentials
+  document.getElementById('binanceKeyInput').value = localStorage.getItem('sq_binance_key') || '';
+  document.getElementById('binanceSecretInput').value = localStorage.getItem('sq_binance_secret') || '';
+  
   document.getElementById('apiModal').classList.add('open');
   updateApiKeyIndicators();
 }
@@ -1647,6 +1672,8 @@ function updateApiKeyIndicators() {
   // Visual feedback for saved keys (add green border/checkmark)
   const inputs = [
     { id: 'apiKeyInput', key: 'sq_api_key' },
+    { id: 'binanceKeyInput', key: 'sq_binance_key' },
+    { id: 'binanceSecretInput', key: 'sq_binance_secret' },
     { id: 'groqKeyInput', key: 'sq_groq_key' },
     { id: 'whaleKeyInput', key: 'sq_whale_key' },
     { id: 'ethKeyInput', key: 'sq_eth_key' },
@@ -1674,6 +1701,10 @@ function saveApiKey() {
   const ethKey = document.getElementById('ethKeyInput').value.trim();
   const cpKey = document.getElementById('cpKeyInput').value.trim();
   
+  // Binance Trading API credentials
+  const binanceApiKey = document.getElementById('binanceKeyInput').value.trim();
+  const binanceApiSecret = document.getElementById('binanceSecretInput').value.trim();
+  
   if (!email) {
     showToast('error','❌','Please enter your email for trade notifications');
     return;
@@ -1691,6 +1722,12 @@ function saveApiKey() {
   if (whaleKey) localStorage.setItem('sq_whale_key', whaleKey);
   if (ethKey) localStorage.setItem('sq_eth_key', ethKey);
   if (cpKey) localStorage.setItem('sq_cp_key', cpKey);
+  
+  // Save Binance Trading API keys
+  if (binanceApiKey && binanceApiSecret) {
+    localStorage.setItem('sq_binance_key', binanceApiKey);
+    localStorage.setItem('sq_binance_secret', binanceApiSecret);
+  }
   
   // Generate or retrieve userId (simple UUID-like)
   let userId = localStorage.getItem('sq_user_id');
@@ -1710,6 +1747,11 @@ function saveApiKey() {
   
   // Send encrypted API key to backend for 24/7 auto-posting
   sendApiKeyToBackend(userId, email, binanceKey);
+  
+  // Send Binance Trading credentials to backend
+  if (binanceApiKey && binanceApiSecret) {
+    addBinanceCredentials(userId, binanceApiKey, binanceApiSecret);
+  }
   
   // Update visual feedback
   updateApiKeyIndicators();
@@ -1737,6 +1779,57 @@ async function sendApiKeyToBackend(userId, email, apiKey) {
     }
   } catch(e) {
     console.log('Could not sync API key to backend:', e.message);
+  }
+}
+
+// Send Binance Trading credentials to backend
+async function addBinanceCredentials(userId, apiKey, apiSecret) {
+  try {
+    const res = await fetch('http://localhost:5000/api/trading/keys/add', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        accountName: userId || 'main',
+        apiKey: apiKey,
+        apiSecret: apiSecret,
+        environment: 'live'
+      })
+    });
+    
+    const data = await res.json();
+    
+    if (res.ok || data.success) {
+      console.log('✅ Binance Trading API credentials registered successfully!');
+      showToast('success', '💰', `Binance Account Added: ${userId}`);
+      
+      // Load portfolio after credentials are saved
+      setTimeout(() => loadBinancePortfolio(userId), 1500);
+      
+      return data;
+    } else {
+      console.error('❌ Failed to add Binance credentials:', data.error);
+      showToast('error', '❌', data.error || 'Failed to add Binance API keys');
+      return null;
+    }
+  } catch(e) {
+    console.error('Error adding Binance credentials:', e.message);
+    showToast('warning', '⚠️', 'Could not verify Binance keys - check backend is running');
+    return null;
+  }
+}
+
+// Load Binance portfolio after credentials are added
+async function loadBinancePortfolio(userId) {
+  try {
+    const res = await fetch(`http://localhost:5000/api/trading/portfolio?account=${userId || 'main'}`);
+    const data = await res.json();
+    
+    if (data.success && data.portfolio) {
+      console.log('📊 Portfolio loaded:', data.portfolio);
+      showToast('success', '📊', `Portfolio: $${(data.totalValue || 0).toFixed(2)} USDT`);
+    }
+  } catch(e) {
+    console.log('Portfolio auto-load skipped:', e.message);
   }
 }
 

@@ -82,14 +82,81 @@ const AIAssistant = {
       return this.handleRecurringTask(message);
     }
 
-    // 5️⃣ GENERAL HELP
-    return '🤖 Hello! I can help you with:\n\n' +
-      '📅 Scheduled posts: "Post at 4pm about crypto news"\n' +
-      '💰 Trading: "Buy $5 DASH on Binance"\n' +
-      '🎯 Profit triggers: "If BTC profit $1 close trade"\n' +
-      '⏰ Recurring: "Every day post good morning from Groq"\n' +
-      '📋 View tasks: "Show my tasks"\n\n' +
-      'What would you like me to do?';
+    // 5️⃣ PRICE QUERIES (e.g., "price of BNB", "btc price", "how much is eth")
+    if (msg.includes('price') || msg.includes('cost') || msg.includes('how much') || msg.includes('value of')) {
+      return this.handlePriceQuery(message);
+    }
+
+    // 6️⃣ PORTFOLIO QUERIES (e.g., "show portfolio", "my balance", "holdings")
+    if (msg.includes('portfolio') || msg.includes('balance') || msg.includes('holdings') || msg.includes('show my')) {
+      return this.handlePortfolioQuery(message);
+    }
+
+    // 7️⃣ GENERAL QUERIES (everything else - call backend chat API)
+    return this.callBackendChat(message);
+  },
+  
+  async handlePriceQuery(message) {
+    // Extract coin name/symbol
+    const coinMatch = message.match(/(?:of|for|the|btc|eth|bnb|ada|sol|xrp|dot|link|uni|matic)\s+([a-z]{2,6})|(btc|eth|bnb|ada|sol|xrp|dot|link|uni|matic)/i);
+    const coin = coinMatch ? (coinMatch[1] || coinMatch[2]) : null;
+    
+    if (!coin) {
+      return '💰 Which coin? E.g., "Price of BTC", "ETH cost now", "How much is SOL?"';
+    }
+    
+    try {
+      const userId = localStorage.getItem('sq_user_id') || 'user_' + Date.now();
+      const response = await fetch('http://localhost:5000/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: `What is the price of ${coin}?`, userId })
+      });
+      
+      const data = await response.json();
+      return data.response || '💰 Could not fetch price. Check backend.';
+    } catch(e) {
+      console.error('Price query failed:', e);
+      return `💰 Price service unavailable. Check backend at http://localhost:5000`;
+    }
+  },
+  
+  async handlePortfolioQuery(message) {
+    try {
+      const userId = localStorage.getItem('sq_user_id') || 'user_' + Date.now();
+      const response = await fetch('http://localhost:5000/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: 'show my portfolio', userId })
+      });
+      
+      const data = await response.json();
+      return data.response || '📊 Portfolio data unavailable. Add Binance API keys first.';
+    } catch(e) {
+      console.error('Portfolio query failed:', e);
+      return `📊 Could not load portfolio. Make sure:\n• Backend is running\n• You've added Binance API keys\n• Your account has balance`;
+    }
+  },
+  
+  async callBackendChat(message) {
+    try {
+      const userId = localStorage.getItem('sq_user_id') || 'user_' + Date.now();
+      const response = await fetch('http://localhost:5000/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message, userId })
+      });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+      
+      const data = await response.json();
+      return data.response || 'I understand your request but couldn\'t process it.';
+    } catch(e) {
+      console.error('Backend chat failed:', e.message);
+      return `🤖 I couldn't process that request right now. Make sure:\n• Backend is running\n• You're connected to internet\n• Try again in a moment`;
+    }
   },
   async handleScheduledPost(message) {
     // Extract time and content from message

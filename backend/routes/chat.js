@@ -239,6 +239,7 @@ async function searchTokens(keyword) {
 async function getPrice(symbol) {
   try {
     const sym = symbol?.toLowerCase() || 'bitcoin';
+    console.log(`💰 Fetching price for: ${sym}`);
     
     const response = await axios.get('https://api.coingecko.com/api/v3/simple/price', {
       params: {
@@ -248,25 +249,37 @@ async function getPrice(symbol) {
         include_24hr_vol: true,
         include_24hr_change: true
       },
-      timeout: 5000
+      timeout: 10000,
+      headers: {
+        'User-Agent': 'SquarePulse-Bot/1.0 (+https://squarepulse.com)',
+        'Accept': 'application/json'
+      }
     });
+    
+    console.log(`✅ API Response:`, response.data);
     
     const data = response.data[sym];
     if (data && data.usd) {
       const change = (data.usd_24h_change || 0).toFixed(2);
       const changeEmoji = data.usd_24h_change > 0 ? '🟢' : '🔴';
       
-      return `💰 **${sym.toUpperCase()} PRICE**\n\n` +
-             `Current Price: $${data.usd?.toLocaleString() || 'N/A'}\n` +
+      const formatted = `💰 **${sym.toUpperCase()} PRICE**\n\n` +
+             `Current Price: $${data.usd.toLocaleString('en-US', {minimumFractionDigits: 2})} USD\n` +
              `24h Change: ${changeEmoji} ${change}%\n` +
-             `Market Cap: $${formatNumber(data.usd_market_cap)}\n` +
-             `24h Volume: $${formatNumber(data.usd_24h_vol)}\n\n` +
-             '💭 Tip: Use this to time your entry points!';
+             `Market Cap: ${formatNumber(data.usd_market_cap)}\n` +
+             `24h Volume: ${formatNumber(data.usd_24h_vol)}\n\n` +
+             '💭 Tip: Perfect time to analyze entry points!';
+      
+      console.log(`📊 Formatted: ${formatted}`);
+      return formatted;
     }
     
-    return `💰 Could not find price for "${symbol}". Try "bitcoin", "ethereum", or "solana"`;
+    console.warn(`⚠️ No price data found for ${sym} in response:`, response.data);
+    return `💰 Could not find price for "${symbol}". Try "bitcoin", "ethereum", "solana", "bnb", or "cardano"`;
+    
   } catch (error) {
-    return `💰 Price service temporarily down. Check live price on CoinGecko or Binance`;
+    console.error(`❌ Price API Error:`, error.message, error.response?.status, error.response?.data);
+    return `💰 Price service error (${error.response?.status || 'network'}). Try again in a moment.`;
   }
 }
 

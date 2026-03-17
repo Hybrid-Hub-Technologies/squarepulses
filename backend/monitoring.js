@@ -11,6 +11,71 @@ const {
 
 let isMonitoring = false;
 
+// Price cache to avoid hitting API too hard
+const priceCache = new Map();
+const CACHE_DURATION = 60000; // Cache for 60 seconds
+const REQUEST_DELAYS = new Map(); // Track request times to rate limit
+
+/**
+ * Get cached price or fetch from API with rate limiting
+ */
+async function getPriceWithRateLimit(symbol) {
+  const now = Date.now();
+  const cacheKey = symbol.toLowerCase();
+  
+  // Return cached price if still valid
+  if (priceCache.has(cacheKey)) {
+    const cached = priceCache.get(cacheKey);
+    if (now - cached.timestamp < CACHE_DURATION) {
+      return cached.price;
+    }
+  }
+  
+  // Check if we've made a request recently for this symbol
+  if (REQUEST_DELAYS.has(cacheKey)) {
+    const lastRequest = REQUEST_DELAYS.get(cacheKey);
+    if (now - lastRequest < 10000) { // Min 10 seconds between requests for same coin
+      // Return last cached value if available
+      if (priceCache.has(cacheKey)) {
+        return priceCache.get(cacheKey).price;
+      }
+      return null;
+    }
+  }
+  
+  try {
+    // Add slight delay to spread requests
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
+    const response = await axios.get(
+      `https://api.coingecko.com/api/v3/simple/price?ids=${cacheKey}&vs_currencies=usd`,
+      { timeout: 8000 }
+    );
+    
+    const price = response.data[cacheKey]?.usd;
+    
+    if (price) {
+      // Cache the price
+      priceCache.set(cacheKey, { price, timestamp: now });
+      REQUEST_DELAYS.set(cacheKey, now);
+      return price;
+    }
+    
+    return null;
+  } catch (error) {
+    if (error.response?.status === 429) {
+      console.warn(`⚠️ Rate limited by CoinGecko for ${symbol}. Using cached value.`);
+      // Return last cached value if available
+      if (priceCache.has(cacheKey)) {
+        return priceCache.get(cacheKey).price;
+      }
+    } else {
+      console.error(`Error fetching price for ${symbol}:`, error.message);
+    }
+    return null;
+  }
+}
+
 // Post to Binance Square using correct endpoint (via local proxy)
 async function postToSquareWithKey(apiKey, content) {
   try {
@@ -60,14 +125,9 @@ async function checkPrices() {
 
     for (const post of posts) {
       try {
-        // Get current price from CoinGecko
-        const coinId = post.coin_name.toLowerCase();
-        const priceRes = await axios.get(
-          `https://api.coingecko.com/api/v3/simple/price?ids=${coinId}&vs_currencies=usd`,
-          { timeout: 5000 }
-        );
+        // Get current price with rate limiting and caching
+        const currentPrice = await getPriceWithRateLimit(post.coin_name);
         
-        const currentPrice = priceRes.data[coinId]?.usd;
         if (!currentPrice) {
           console.log(`⚠️ Could not fetch price for ${post.coin_symbol}`);
           continue;

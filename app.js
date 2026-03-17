@@ -5,8 +5,8 @@
 
 const APP = {
   // Configuration
-  apiUrl: 'http://localhost:5000',
-  openclawUrl: 'http://localhost:18789',
+  apiUrl: 'http://192.168.100.81:5000',
+  openclawUrl: 'http://192.168.100.81:18789',
   
   // State
   messages: [],

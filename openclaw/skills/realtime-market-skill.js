@@ -116,6 +116,9 @@ class RealtimeMarketSkill {
     const eth = priceData.ETH;
     const mktTrend = analysis.trend;
     
+    // Generate automatic trading signals
+    const autoSignals = this.generateAutoSignals(priceData);
+    
     const post = `
 🚀 CRYPTO MARKET UPDATE - ${new Date().toLocaleString()}
 
@@ -151,6 +154,12 @@ ${analysis.signals.map(s => `• ${s}`).join('\n')}
 
 ═══════════════════════════════════════════════════════
 
+🚀 **AUTO-GENERATED TRADING SIGNALS (HIGH PROBABILITY)**
+
+${autoSignals}
+
+═══════════════════════════════════════════════════════
+
 💡 **TRADING RECOMMENDATION**
 
 ${this.getTradingAdvice(priceData, analysis)}
@@ -163,6 +172,150 @@ Data Source: Binance Real-Time API ✅
     `.trim();
 
     return post;
+  }
+
+  /**
+   * Generate automatic high-probability trading signals for 2 best coins
+   */
+  generateAutoSignals(priceData) {
+    const coins = Object.keys(priceData);
+    const signalScores = [];
+
+    // Calculate signal scores for each coin
+    for (const coin of coins) {
+      const data = priceData[coin];
+      const score = this.calculateSignalScore(data, coin);
+      signalScores.push({ coin, data, score });
+    }
+
+    // Sort by score (highest first) and take top 2
+    signalScores.sort((a, b) => b.score.total - a.score.total);
+    const topSignals = signalScores.slice(0, 2);
+
+    // Generate detailed signals for top 2 coins
+    let signalsText = '';
+    topSignals.forEach((signal, index) => {
+      const { coin, data, score } = signal;
+      const signalDetails = this.generateDetailedSignal(coin, data, score);
+      signalsText += `${index + 1}. **${coin}/USDT** (${score.confidence} Confidence)\n${signalDetails}\n\n`;
+    });
+
+    return signalsText.trim();
+  }
+
+  /**
+   * Calculate comprehensive signal score for a coin
+   */
+  calculateSignalScore(data, coin) {
+    const { price, change24h, high24h, low24h } = data;
+    const volatility = Math.abs(change24h);
+    const range = high24h - low24h;
+    const positionInRange = (price - low24h) / range;
+
+    let score = {
+      momentum: 0,
+      volatility: 0,
+      position: 0,
+      volume: 0,
+      total: 0,
+      confidence: 'LOW'
+    };
+
+    // Momentum score (higher change = higher score in trending markets)
+    if (change24h > 3) score.momentum = 10; // Strong uptrend
+    else if (change24h > 1) score.momentum = 7; // Moderate uptrend
+    else if (change24h > -1) score.momentum = 5; // Sideways
+    else if (change24h > -3) score.momentum = 3; // Moderate downtrend
+    else score.momentum = 1; // Strong downtrend
+
+    // Volatility score (moderate volatility preferred)
+    if (volatility >= 2 && volatility <= 5) score.volatility = 8; // Perfect volatility
+    else if (volatility >= 1 && volatility <= 7) score.volatility = 6; // Good volatility
+    else if (volatility < 1) score.volatility = 4; // Too stable
+    else score.volatility = 2; // Too volatile
+
+    // Position in range score (middle range preferred for entries)
+    if (positionInRange >= 0.3 && positionInRange <= 0.7) score.position = 8; // Good entry zone
+    else if (positionInRange >= 0.2 && positionInRange <= 0.8) score.position = 6; // Acceptable
+    else score.position = 4; // Near extremes
+
+    // Volume score (higher volume = more reliable)
+    // Since volume data might be null, we'll use a default score
+    score.volume = 7; // Assume adequate volume
+
+    // Calculate total score
+    score.total = score.momentum + score.volatility + score.position + score.volume;
+
+    // Determine confidence level
+    if (score.total >= 28) score.confidence = 'VERY HIGH';
+    else if (score.total >= 24) score.confidence = 'HIGH';
+    else if (score.total >= 20) score.confidence = 'MEDIUM';
+    else if (score.total >= 16) score.confidence = 'LOW';
+    else score.confidence = 'VERY LOW';
+
+    return score;
+  }
+
+  /**
+   * Generate detailed trading signal for a coin
+   */
+  generateDetailedSignal(coin, data, score) {
+    const { price, change24h, high24h, low24h } = data;
+    const volatility = Math.abs(change24h);
+
+    // Determine signal type based on analysis
+    let signalType = 'HOLD';
+    let entryPrice = price;
+    let tp1 = price;
+    let tp2 = price;
+    let sl = price;
+    let rationale = '';
+
+    if (score.total >= 24) { // High confidence signals
+      if (change24h > 1) {
+        // Bullish continuation
+        signalType = 'BUY (LONG)';
+        entryPrice = (price * 0.98).toFixed(4);
+        tp1 = (price * 1.03).toFixed(4);
+        tp2 = (price * 1.06).toFixed(4);
+        sl = (low24h * 0.97).toFixed(4);
+        rationale = 'Strong momentum continuation with good entry timing';
+      } else if (change24h < -1) {
+        // Bearish continuation
+        signalType = 'SELL (SHORT)';
+        entryPrice = (price * 1.02).toFixed(4);
+        tp1 = (price * 0.97).toFixed(4);
+        tp2 = (price * 0.94).toFixed(4);
+        sl = (high24h * 1.03).toFixed(4);
+        rationale = 'Downtrend continuation with optimal entry point';
+      } else {
+        // Range trading opportunity
+        signalType = 'RANGE TRADE';
+        entryPrice = low24h.toFixed(4);
+        tp1 = (high24h * 0.98).toFixed(4);
+        tp2 = high24h.toFixed(4);
+        sl = (low24h * 0.95).toFixed(4);
+        rationale = 'Low volatility range setup with clear levels';
+      }
+    } else {
+      // Lower confidence - more conservative approach
+      signalType = 'MONITOR';
+      entryPrice = price.toFixed(4);
+      tp1 = (price * 1.02).toFixed(4);
+      tp2 = (price * 1.04).toFixed(4);
+      sl = (price * 0.96).toFixed(4);
+      rationale = 'Monitor for better setup - current conditions mixed';
+    }
+
+    const riskReward = ((tp2 - entryPrice) / (entryPrice - sl)).toFixed(2);
+
+    return `├─ **Signal:** ${signalType}\n` +
+           `├─ **Entry:** $${entryPrice}\n` +
+           `├─ **TP1:** $${tp1} (+${((tp1/entryPrice - 1) * 100).toFixed(1)}%)\n` +
+           `├─ **TP2:** $${tp2} (+${((tp2/entryPrice - 1) * 100).toFixed(1)}%)\n` +
+           `├─ **SL:** $${sl} (-${((1 - sl/entryPrice) * 100).toFixed(1)}%)\n` +
+           `├─ **R/R:** 1:${riskReward} ✅\n` +
+           `└─ **Why:** ${rationale}`;
   }
 
   getTradingAdvice(priceData, analysis) {

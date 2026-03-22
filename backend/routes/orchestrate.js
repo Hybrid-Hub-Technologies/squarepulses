@@ -54,6 +54,7 @@ router.post('/orchestrate', async (req, res) => {
  */
 async function processWithOpenClawAI(message, userId, openclaw) {
   const msg = message.toLowerCase();
+  console.log('🔍 Processing message:', msg);
 
   try {
     // 🐋 WHALE MOVEMENTS
@@ -85,8 +86,11 @@ async function processWithOpenClawAI(message, userId, openclaw) {
 
     // 📊 MARKET ANALYSIS - USE REAL-TIME OPENCLAW SKILL
     if (msg.includes('market') && (msg.includes('analyze') || msg.includes('analysis') || msg.includes('update'))) {
+      console.log('🎯 MARKET ANALYSIS REQUEST - Using OpenClaw');
       const result = await openclaw.processCommand(message);
+      console.log('🎯 OpenClaw result:', { hasPost: !!result.post, type: typeof result, keys: Object.keys(result) });
       if (result.post) {
+        console.log('🎯 Returning post with length:', result.post.length);
         return result.post; // Return the live market analysis post
       }
       return result.message || 'Market analysis unavailable';

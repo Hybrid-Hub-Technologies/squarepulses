@@ -11,6 +11,7 @@ const TradingPositionManager = require('./skills/trading-position-manager');
 const PriceMonitor = require('./skills/price-monitor');
 const MarketAlerts = require('./skills/market-alerts');
 const SignalsAndAnalysis = require('./skills/signals-and-analysis');
+const RealtimeMarketSkill = require('./skills/realtime-market-skill');
 
 class SquarePulseOpenClawIntegration {
   constructor(config = {}) {
@@ -21,17 +22,19 @@ class SquarePulseOpenClawIntegration {
       ...config
     };
 
-    // Initialize all skills
+    // Initialize all skills (now with REAL-TIME market data)
     this.trading = new TradingPositionManager(this.config);
     this.prices = new PriceMonitor(this.config);
     this.alerts = new MarketAlerts(this.config);
     this.signals = new SignalsAndAnalysis(this.config);
+    this.realtimemarket = new RealtimeMarketSkill(this.config);
 
     this.skills = {
       'trading': this.trading,
       'prices': this.prices,
       'alerts': this.alerts,
-      'signals': this.signals
+      'signals': this.signals,
+      'realtimemarket': this.realtimemarket
     };
   }
 
@@ -43,6 +46,69 @@ class SquarePulseOpenClawIntegration {
   async processCommand(command) {
     try {
       const cmd = command.toLowerCase().trim();
+
+      // ═══════════════════════════════════════════════════════
+      // 🔴 REAL-TIME MARKET ANALYSIS (NEW WITH LIVE DATA)
+      // ═══════════════════════════════════════════════════════
+      
+      if (cmd.includes('market analysis') || cmd.includes('market update') || cmd.includes('crypto update 2026')) {
+        const result = await this.realtimemarket.generateMarketPost();
+        if (result.success) {
+          return {
+            skill: 'realtimemarket',
+            action: 'generateMarketPost',
+            type: 'LIVE_ANALYSIS',
+            message: '📊 Real-time market analysis generated',
+            post: result.post,
+            analysis: result.analysis,
+            priceData: result.priceData,
+            timestamp: result.timestamp,
+            dataSource: '✅ LIVE BINANCE API - NOT CACHED'
+          };
+        }
+        return result;
+      }
+
+      // Analyze specific coin with real-time data
+      if (cmd.includes('analyze') && !cmd.includes('market')) {
+        const match = cmd.match(/analyze\s+(\w+)|(\w+)\s+(?:coin|token|chart)/i);
+        if (match) {
+          const coin = match[1] || match[2];
+          const result = await this.realtimemarket.analyzeCoin(coin);
+          if (result.success) {
+            return {
+              skill: 'realtimemarket',
+              action: 'analyzeCoin',
+              coin: result.coin,
+              trend: result.trend,
+              analysis: result.analysis,
+              timestamp: result.timestamp
+            };
+          }
+          return result;
+        }
+      }
+
+      // Get current price with analysis
+      if (cmd.includes('price of') || cmd.includes('current price')) {
+        const match = cmd.match(/price\s+(?:of\s+)?(\w+)|(\w+)\s+price/i);
+        if (match) {
+          const symbol = match[1] || match[2];
+          const result = await this.realtimemarket.analyzeCoin(symbol);
+          if (result.success) {
+            return {
+              skill: 'realtimemarket',
+              message: `${result.coin.symbol}: $${result.coin.price.toFixed(4)} (${result.coin.change24h > 0 ? '+' : ''}${result.coin.change24h.toFixed(2)}% in 24h)`,
+              price: result.coin.price,
+              change24h: result.coin.change24h,
+              trend: result.trend,
+              analysis: result.analysis,
+              timestamp: result.timestamp
+            };
+          }
+          return result;
+        }
+      }
 
       // Trading commands
       if (cmd.includes('open position') || cmd.includes('long') || cmd.includes('short')) {

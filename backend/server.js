@@ -10,6 +10,7 @@ const tasksRouter = require('./routes/tasks');
 const openclawRouter = require('./routes/openclaw');
 const chatRouter = require('./routes/chat');
 const tradingRouter = require('./routes/trading'); // NEW: Binance trading
+const orchestrateRouter = require('./routes/orchestrate'); // NEW: OpenClaw orchestration
 const cron = require('node-cron');
 const TradingBot = require('./utils/tradingBot');
 const BinanceSpotAPI = require('./utils/binanceSpotApi');
@@ -35,6 +36,7 @@ app.use('/api', tasksRouter);
 app.use('/api', openclawRouter);
 app.use('/api', chatRouter);
 app.use('/api/trading', tradingRouter); // NEW: Binance trading API routes
+app.use('/api', orchestrateRouter); // NEW: OpenClaw orchestration
 
 // ── Start monitoring when server starts ──────────────────
 app.listen(PORT, '0.0.0.0', () => {

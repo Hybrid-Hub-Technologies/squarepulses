@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const axios = require('axios');
+const OpenClawIntegration = require('../../openclaw/integration');
 
 /**
  * POST /api/orchestrate
@@ -21,8 +22,14 @@ router.post('/orchestrate', async (req, res) => {
 
     console.log(`\n📨 [${new Date().toLocaleTimeString()}] OpenClaw Processing: "${message}"`);
 
+    // Initialize OpenClaw integration
+    const openclaw = new OpenClawIntegration({
+      baseUrl: 'http://localhost:5000/api',
+      userId: userId || 'frontend-user'
+    });
+
     // Process through OpenClaw AI logic
-    const response = await processWithOpenClawAI(message, userId);
+    const response = await processWithOpenClawAI(message, userId, openclaw);
 
     console.log(`📤 Response generated (${response ? response.length : '0'} chars)`);
     console.log(response.substring(0, 100) + '...');
@@ -45,7 +52,7 @@ router.post('/orchestrate', async (req, res) => {
 /**
  * Process message with OpenClaw AI Logic
  */
-async function processWithOpenClawAI(message, userId) {
+async function processWithOpenClawAI(message, userId, openclaw) {
   const msg = message.toLowerCase();
 
   try {
@@ -76,9 +83,13 @@ async function processWithOpenClawAI(message, userId) {
       return await searchTokens(keyword);
     }
 
-    // 📊 MARKET ANALYSIS  
-    if (msg.includes('market') && (msg.includes('analyze') || msg.includes('analysis'))) {
-      return getMarketAnalysis();
+    // 📊 MARKET ANALYSIS - USE REAL-TIME OPENCLAW SKILL
+    if (msg.includes('market') && (msg.includes('analyze') || msg.includes('analysis') || msg.includes('update'))) {
+      const result = await openclaw.processCommand(message);
+      if (result.post) {
+        return result.post; // Return the live market analysis post
+      }
+      return result.message || 'Market analysis unavailable';
     }
 
     // 🟢 TRADING SIGNALS
@@ -226,27 +237,6 @@ async function searchTokens(keyword) {
   } catch (error) {
     return `🔎 Token search unavailable. Try again later.`;
   }
-}
-
-function getMarketAnalysis() {
-  return '📊 **COMPREHENSIVE MARKET ANALYSIS - OpenClaw AI Assessment**\n\n' +
-         '**Current Market State:** 🟢 BULLISH WITH CAUTION\n\n' +
-         '**Whale Activity:** ✅ Accumulation Phase\n' +
-         '└─ Large wallets buying and moving to cold storage\n' +
-         '└─ Signal: Institutional confidence high\n\n' +
-         '**News Sentiment:** 70% Positive\n' +
-         '└─ ETF approvals, regulatory clarity, institutional adoption\n' +
-         '└─ Signal: Positive momentum continues\n\n' +
-         '**Volatility:** 3.2%\n' +
-         '└─ Normal range for healthy trading\n' +
-         '└─ Signal: Good risk/reward ratios available\n\n' +
-         '**Technical:** BTC at key resistance $50,500\n' +
-         '└─ Breakout above = Target $55,000+\n' +
-         '└─ Breakdown below = Support at $49,000\n\n' +
-         '🎯 **RECOMMENDATION:**\n' +
-         'Enter long on pullback to $49,500-$49,800\n' +
-         'Risk/Reward: 1:3 (Excellent)\n' +
-         'Timeframe: 4-12 week swing trade';
 }
 
 function getSignals() {

@@ -1,6 +1,22 @@
 const express = require('express');
 const router = express.Router();
 const axios = require('axios');
+require('dotenv').config({ path: require('path').join(__dirname, '../.env') });
+
+// ════════════════════════════════════════════════════════════════════════════
+// CACHE & CONFIG
+// ════════════════════════════════════════════════════════════════════════════
+const newsCache = {
+  data: null,
+  timestamp: 0,
+  cacheTTL: 60000 // 60 seconds for CryptoPanic rate limiting
+};
+
+let lastNewsRequestTime = 0;
+const NEWS_REQUEST_DELAY = 10000; // 10 second minimum between requests
+
+const CRYPTOPANIC_API_KEY = process.env.CRYPTOPANIC_API_KEY;
+const CRYPTOPANIC_URL = process.env.CRYPTOPANIC_BASE_URL || 'https://cryptopanic.com/api/developer/v2/posts/';
 
 /**
  * POST /api/chat
@@ -23,7 +39,7 @@ router.post('/chat', async (req, res) => {
     }
     // 📰 NEWS
     else if (msg.includes('news') || msg.includes('trending')) {
-      response = newsData();
+      response = await getCryptoPanicNews();
     }
     // 💱 FOREX
     else if (msg.includes('forex') || msg.includes('economic') || msg.includes('calendar')) {
@@ -98,7 +114,105 @@ function whaleData() {
          '   Type: Large Transfer Out\n' +
          '   Address: 1A1z7...Qan\n' +
          '   Sentiment: ✅ BULLISH (Cold Storage)\n\n' +
-         '⚡ Summary: More whales buying than selling. Bullish signal!';
+         '4. SOL - $325,000\n' +
+         '   Type: Exchange Withdrawal\n' +
+         '   Address: SOL...ABC\n' +
+         '   Sentiment: ✅ BULLISH (Accumulation)\n\n' +
+         '5. USDC - $2,100,000\n' +
+         '   Type: Large Stablecoin Transfer\n' +
+         '   Address: 0x98AB...DEF\n' +
+         '   Sentiment: ⚠️ NEUTRAL (Profit Taking)\n\n' +
+         '⚡ **Summary**: More whales buying than selling. Bullish signal! 🔥';
+}
+
+async function getCryptoPanicNews() {
+  try {
+    const now = Date.now();
+    
+    // Check if cache is still valid
+    if (newsCache.data && (now - newsCache.timestamp) < newsCache.cacheTTL) {
+      console.log('📚 Using cached news (within TTL)');
+      return newsCache.data;
+    }
+
+    // Check request throttle to respect rate limiting
+    const timeSinceLastRequest = now - lastNewsRequestTime;
+    if (timeSinceLastRequest < NEWS_REQUEST_DELAY && newsCache.data) {
+      console.log(`⏳ Rate limiting news: ${NEWS_REQUEST_DELAY - timeSinceLastRequest}ms until next request. Using cached news.`);
+      return newsCache.data;
+    }
+
+    if (!CRYPTOPANIC_API_KEY) {
+      console.log('⚠️ No CryptoPanic API key configured, using fallback news');
+      return newsData(); // Fallback to static news
+    }
+
+    console.log('📚 Fetching fresh crypto news from CryptoPanic...');
+    lastNewsRequestTime = now;
+    
+    const response = await axios.get(CRYPTOPANIC_URL, {
+      params: {
+        auth_token: CRYPTOPANIC_API_KEY,
+        currencies: 'bitcoin,ethereum,ripple,solana',
+        kind: 'news,media',
+        limit: 5,
+        page: 1
+      },
+      timeout: 8000,
+      headers: {
+        'User-Agent': 'SquarePulse-Bot/1.0 (+https://squarepulse.com)',
+        'Accept': 'application/json'
+      }
+    });
+
+    const posts = response.data?.results || [];
+    
+    if (posts.length === 0) {
+      console.log('⚠️ No posts returned from CryptoPanic, using fallback');
+      return newsData();
+    }
+
+    let newsResponse = '📰 **CRYPTO NEWS** *(Live from CryptoPanic)*\n\n';
+    
+    posts.forEach((post, idx) => {
+      const publishedAt = new Date(post.published_at).toLocaleString();
+      const sentiment = post.kind === 'news' ? '📰' : '📺';
+      const source = post.source?.name || 'Unknown Source';
+      const title = (post.title || 'No Title').substring(0, 60);
+      
+      newsResponse += `${idx + 1}. ${sentiment} **${title}**\n`;
+      newsResponse += `   Source: ${source}\n`;
+      newsResponse += `   Published: ${publishedAt}\n`;
+      if (post.currencies && post.currencies.length > 0) {
+        newsResponse += `   Coins: ${post.currencies.map(c => c.code).join(', ')}\n`;
+      }
+      newsResponse += `\n`;
+    });
+
+    newsResponse += `💡 Tip: News updates are cached for ${newsCache.cacheTTL / 1000}s to respect API limits\n`;
+    newsResponse += `🔗 More news at CryptoPanic.com`;
+
+    console.log('✅ News fetched from CryptoPanic successfully');
+    
+    // Update cache
+    newsCache.data = newsResponse;
+    newsCache.timestamp = now;
+
+    return newsResponse;
+
+  } catch (error) {
+    console.log(`⚠️ CryptoPanic API error: ${error.message} (${error.response?.status || 'unknown'})`);
+    
+    // If we have cached news and API fails, use it
+    if (newsCache.data) {
+      console.log('📚 API error detected, returning cached news');
+      return newsCache.data;
+    }
+    
+    // Otherwise use static fallback
+    console.log('📚 Using static fallback news');
+    return newsData();
+  }
 }
 
 function newsData() {
@@ -123,22 +237,30 @@ function newsData() {
 
 function forexData() {
   return '💱 **FOREX ECONOMIC CALENDAR**\n\n' +
-         '📊 **HIGH IMPACT EVENTS**\n\n' +
+         '📊 **HIGH IMPACT EVENTS (Next 7 Days)**\n\n' +
          '1. Non-Farm Payroll (US)\n' +
          '   Impact: 🔴 HIGH\n' +
          '   Forecast: 200,000 jobs\n' +
          '   Previous: 185,000\n' +
-         '   ⏰ Next Friday\n\n' +
+         '   ⏰ Friday, Next Week\n' +
+         '   💡 Crypto Impact: Strong USD movement → BTC/USD volatility\n\n' +
          '2. CPI - Consumer Price Index (US)\n' +
          '   Impact: 🔴 HIGH  \n' +
          '   Forecast: 3.5% YoY\n' +
          '   Previous: 3.7%\n' +
-         '   ⏰ In 5 days\n\n' +
+         '   ⏰ In 5 days\n' +
+         '   💡 Crypto Impact: Inflation data drives Fed policy → Risk-on/off capital flows\n\n' +
          '3. ECB Interest Rate Decision\n' +
          '   Impact: 🔴 HIGH\n' +
          '   Action: Monitor for rate decisions\n' +
-         '   ⏰ In 8 days\n\n' +
-         '💡 **Impact on Crypto**: USD strength inversely affects BTC/USD prices';
+         '   ⏰ In 8 days\n' +
+         '   💡 Crypto Impact: EUR volatility → Altcoin movements\n\n' +
+         '4. Fed FOMC Meeting Minutes\n' +
+         '   Impact: 🟡 MEDIUM\n' +
+         '   ⏰ In 3 days\n' +
+         '   💡 Crypto Impact: Rate expectations → BTC liquidation risk\n\n' +
+         '🎯 **Current USD Impact**: 📈 DXY at 104.5 (+0.3%) \n' +
+         '🔗 **Bitcoin Correlation**: Inverse (Strong USD = Weak BTC)';
 }
 
 function marketAnalysis() {

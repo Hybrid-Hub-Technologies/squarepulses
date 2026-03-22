@@ -11,31 +11,97 @@ let _selectedWhale = null;
 async function loadWhalesTab() {
   const container = document.getElementById('whales-feed');
   if (!container) return;
+  
+  if (window._whalesLoaded) {
+    renderWhalesFeed(_whaleItems);
+    return;
+  }
+  
   container.innerHTML = '<div class="loading-overlay"><span class="spinner"></span> Scanning whale movements...</div>';
 
   try {
-    // Pass optional API keys from SP so proxy can use them
-    const waKey  = (window.SP?.waKey  || '');
-    const ethKey = (window.SP?.ethKey || '');
-    const params = new URLSearchParams({ type: 'whales' });
-    if (waKey)  params.append('waKey',  waKey);
-    if (ethKey) params.append('ethKey', ethKey);
-
-    const res  = await fetch(`http://localhost:5000/api/proxy?${params}`);
+    // Call chat API to get whale data
+    const res = await fetch('http://localhost:5000/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        message: 'Show me whale movements and large transactions',
+        userId: window.SP?.userId || 'frontend-user'
+      })
+    });
+    
     const data = await res.json();
+    
+    if (!data.success || !data.response) throw new Error('No whale data');
 
-    if (!data.success || !data.data?.length) throw new Error(data.message || 'No whale data');
+    // Parse whale response into structured items
+    _whaleItems = parseWhaleResponse(data.response);
+    
+    if (_whaleItems.length === 0) throw new Error('No whale movements parsed');
 
-    _whaleItems = data.data;
+    window._whalesLoaded = true;
     renderWhalesFeed(_whaleItems);
 
   } catch(e) {
+    console.error('Whale load error:', e);
     container.innerHTML = `
       <div class="empty-state">
         <div class="icon">🐋</div>
         <p>Could not load whale data.<br><small>${e.message}</small></p>
+        <button class="btn btn-ghost" style="margin-top:12px" onclick="window._whalesLoaded=false;loadWhalesTab()">🔄 Retry</button>
       </div>`;
   }
+}
+
+// ── Parse whale response ───────────────────────────────────
+function parseWhaleResponse(responseText) {
+  const items = [];
+  
+  // Parse whale response
+  const lines = responseText.split('\n').filter(l => l.trim());
+  let currentWhale = null;
+  
+  for (const line of lines) {
+    const numMatch = line.match(/^(\d+)\.\s+(.+)/);
+    if (numMatch) {
+      if (currentWhale) items.push(currentWhale);
+      currentWhale = {
+        id: 'whale-' + items.length,
+        coin: numMatch[2].split('-')[0]?.trim().toUpperCase() || 'BTC',
+        amount: 0,
+        usdValue: '',
+        usdValueRaw: 0,
+        type: 'LARGE TRANSFER',
+        fromAddress: '',
+        toAddress: '',
+        impact: 'NEUTRAL',
+        timestamp: new Date().toISOString(),
+        txHash: ''
+      };
+    } else if (currentWhale) {
+      if (line.includes('Type:')) {
+        if (line.includes('Transfer Out')) currentWhale.type = 'LARGE TRANSFER OUT';
+        if (line.includes('Transfer In')) currentWhale.type = 'LARGE TRANSFER IN';
+        if (line.includes('Deposit')) { currentWhale.type = 'EXCHANGE DEPOSIT'; currentWhale.impact = 'BEARISH'; }
+        if (line.includes('Withdrawal')) { currentWhale.type = 'EXCHANGE WITHDRAWAL'; currentWhale.impact = 'BULLISH'; }
+        if (line.includes('Cold Storage')) { currentWhale.type = 'TO COLD STORAGE'; currentWhale.impact = 'BULLISH'; }
+      }
+      if (line.includes('Sentiment:')) {
+        if (line.includes('BULLISH')) currentWhale.impact = 'BULLISH';
+        else if (line.includes('BEARISH')) currentWhale.impact = 'BEARISH';
+      }
+      if (line.includes('$')) {
+        const match = line.match(/\$[\d,]+/);
+        if (match) {
+          currentWhale.usdValue = match[0];
+          currentWhale.usdValueRaw = parseInt(match[0].replace(/[$,]/g, ''));
+        }
+      }
+    }
+  }
+  
+  if (currentWhale) items.push(currentWhale);
+  return items.slice(0, 10);
 }
 
 // ── Render feed ───────────────────────────────────────────

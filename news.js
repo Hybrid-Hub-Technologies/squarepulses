@@ -10,24 +10,83 @@ let _selectedNews = null;
 async function loadNewsTab() {
   const container = document.getElementById('news-feed');
   if (!container) return;
+  
+  if (window._newsLoaded) {
+    renderNewsFeed(_newsItems);
+    return;
+  }
+  
   container.innerHTML = '<div class="loading-overlay"><span class="spinner"></span> Fetching latest crypto news...</div>';
 
   try {
-    const res  = await fetch(`http://localhost:5000/api/proxy?type=news`);
+    // Call chat API to get news from CryptoPanic
+    const res = await fetch('http://localhost:5000/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        message: 'Show me latest crypto news',
+        userId: window.SP?.userId || 'frontend-user'
+      })
+    });
+    
     const data = await res.json();
+    
+    if (!data.success || !data.response) throw new Error('No news available');
 
-    if (!data.success || !data.data?.length) throw new Error('No news available');
+    // Parse news response into structured items
+    _newsItems = parseNewsResponse(data.response);
+    
+    if (_newsItems.length === 0) throw new Error('No news items parsed');
 
-    _newsItems = data.data;
+    window._newsLoaded = true;
     renderNewsFeed(_newsItems);
 
   } catch (e) {
+    console.error('News load error:', e);
     container.innerHTML = `
       <div class="empty-state">
         <div class="icon">📰</div>
         <p>Could not load news.<br><small>${e.message}</small></p>
+        <button class="btn btn-ghost" style="margin-top:12px" onclick="window._newsLoaded=false;loadNewsTab()">🔄 Retry</button>
       </div>`;
   }
+}
+
+// ── Parse news response ────────────────────────────────────
+function parseNewsResponse(responseText) {
+  const items = [];
+  
+  // Split by numbered items (1. 2. 3. etc.)
+  const lines = responseText.split('\n').filter(l => l.trim());
+  let currentItem = null;
+  
+  for (const line of lines) {
+    const numMatch = line.match(/^(\d+)\.\s+(.+)/);
+    if (numMatch) {
+      if (currentItem) items.push(currentItem);
+      currentItem = {
+        id: 'news-' + items.length,
+        title: numMatch[2].replace(/^\*\*/, '').replace(/\*\*$/, '').trim(),
+        source: 'CryptoPanic',
+        published_at: new Date().toLocaleDateString(),
+        description: '',
+        image: null,
+        url: '#',
+        tags: []
+      };
+    } else if (currentItem && line.match(/^   (Source|Time|Published|Coins):/)) {
+      const parts = line.split(':');
+      if (parts[0].includes('Source')) currentItem.source = parts[1].trim();
+      if (parts[0].includes('Time') || parts[0].includes('Published')) currentItem.published_at = parts[1].trim();
+      if (parts[0].includes('Coins')) currentItem.tags = parts[1].split(',').map(c => c.trim());
+    } else if (currentItem && line.trim().length > 3 && !line.startsWith('   ')) {
+      if (currentItem.description) currentItem.description += ' ' + line.trim();
+      else currentItem.description = line.trim();
+    }
+  }
+  
+  if (currentItem) items.push(currentItem);
+  return items.slice(0, 10);
 }
 
 // ── Render feed ───────────────────────────────────────────

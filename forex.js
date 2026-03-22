@@ -11,29 +11,43 @@ let _countdownTimer = null;
 async function loadForexTab() {
   const container = document.getElementById('forex-feed');
   if (!container) return;
+  
+  if (window._forexLoaded) {
+    renderForexList(_forexEvents);
+    return;
+  }
+  
   container.innerHTML = '<div class="loading-overlay"><span class="spinner"></span> Loading economic calendar...</div>';
 
   try {
-    const groqKey = window.SP?.groqKey || '';
-    const params  = new URLSearchParams({ type: 'forex' });
-    if (groqKey) params.append('groqKey', groqKey);
-
-    const res  = await fetch(`http://localhost:5000/api/proxy?${params}`);
+    // Call chat API to get forex events
+    const res = await fetch('http://localhost:5000/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        message: 'Show me forex calendar economic events',
+        userId: window.SP?.userId || 'frontend-user'
+      })
+    });
+    
     const data = await res.json();
+    
+    if (!data.success || !data.response) throw new Error('No events available');
 
-    if (data.success && data.fallback && !data.data?.length) {
-      throw new Error('Forex Factory unreachable. Add Groq key in ⚙ API Keys for AI-generated events.');
-    }
-    if (!data.success || !data.data?.length) throw new Error(data.message || 'No events available');
+    // Parse forex response into structured items
+    _forexEvents = parseForexResponse(data.response);
+    
+    if (_forexEvents.length === 0) throw new Error('No forex events parsed');
 
-    _forexEvents = data.data;
+    window._forexLoaded = true;
     renderForexList(_forexEvents);
 
     // Start countdown ticker — updates every second
-    if (_countdownTimer) clearInterval(_countdownTimer);
-    _countdownTimer = setInterval(() => updateAllCountdowns(), 1000);
+    if (window._countdownTimer) clearInterval(window._countdownTimer);
+    window._countdownTimer = setInterval(() => updateAllCountdowns(), 1000);
 
   } catch(e) {
+    console.error('Forex load error:', e);
     container.innerHTML = `
       <div class="empty-state">
         <div class="icon">🌍</div>
@@ -41,6 +55,45 @@ async function loadForexTab() {
         <button class="btn btn-ghost" style="margin-top:12px" onclick="window._forexLoaded=false;loadForexTab()">🔄 Retry</button>
       </div>`;
   }
+}
+
+// ── Parse forex response ───────────────────────────────────
+function parseForexResponse(responseText) {
+  const events = [];
+  const now = new Date();
+  
+  // Parse response for forex events
+  const lines = responseText.split('\n').filter(l => l.trim());
+  let currentEvent = null;
+  
+  for (const line of lines) {
+    const numMatch = line.match(/^(\d+)\.\s+(.+)/);
+    if (numMatch) {
+      if (currentEvent) events.push(currentEvent);
+      currentEvent = {
+        id: 'forex-' + events.length,
+        name: numMatch[2].replace(/^\*\*/, '').replace(/\*\*$/, '').trim(),
+        country: '',
+        impact: 'MEDIUM',
+        forecast: '',
+        previous: '',
+        time: new Date(now.getTime() + Math.random() * 7 * 24 * 60 * 60 * 1000).toISOString(),
+        source: 'Economic Calendar',
+        cryptoImpact: 'Mixed'
+      };
+    } else if (currentEvent) {
+      if (line.includes('Impact:')) {
+        if (line.includes('🔴')) currentEvent.impact = 'HIGH';
+        else if (line.includes('🟡')) currentEvent.impact = 'MEDIUM';
+        else currentEvent.impact = 'LOW';
+      }
+      if (line.includes('Forecast:')) currentEvent.forecast = line.split('Forecast:')[1]?.trim() || '';
+      if (line.includes('Previous:')) currentEvent.previous = line.split('Previous:')[1]?.trim() || '';
+    }
+  }
+  
+  if (currentEvent) events.push(currentEvent);
+  return events.slice(0, 10);
 }
 
 // ── Render list with TODAY / UPCOMING sections ────────────
